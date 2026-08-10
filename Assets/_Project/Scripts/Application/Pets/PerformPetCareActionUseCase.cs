@@ -8,6 +8,9 @@ namespace SuccuPet.Application.Pets
         public PetDecayResult DecayResult { get; }
         public PetCareActionResult CareResult { get; }
 
+        public bool IsSuccessful =>
+            CareResult.IsSuccessful;
+
         public PerformPetCareActionResult(
             PetDecayResult decayResult,
             PetCareActionResult careResult)
@@ -27,10 +30,12 @@ namespace SuccuPet.Application.Pets
             IPetStateRepository repository)
         {
             this.decayPolicy = decayPolicy ??
-                throw new ArgumentNullException(nameof(decayPolicy));
+                throw new ArgumentNullException(
+                    nameof(decayPolicy));
 
             this.repository = repository ??
-                throw new ArgumentNullException(nameof(repository));
+                throw new ArgumentNullException(
+                    nameof(repository));
         }
 
         public PerformPetCareActionResult Execute(
@@ -40,7 +45,8 @@ namespace SuccuPet.Application.Pets
         {
             if (petState == null)
             {
-                throw new ArgumentNullException(nameof(petState));
+                throw new ArgumentNullException(
+                    nameof(petState));
             }
 
             if (utcNow.Kind != DateTimeKind.Utc)
@@ -61,7 +67,11 @@ namespace SuccuPet.Application.Pets
                     petState,
                     actionType);
 
-            repository.Save(petState);
+            // Successful care action save.
+            if (careResult.IsSuccessful)
+            {
+                repository.Save(petState);
+            }
 
             return new PerformPetCareActionResult(
                 decayResult,
