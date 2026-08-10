@@ -44,7 +44,7 @@ namespace SuccuPet.Core.Pets
             }
 
             TimeSpan elapsed =
-                utcNow - petState.LastNeedsUpdateUtc;
+                utcNow - petState.LastSimulationUtc;
 
             if (elapsed <= TimeSpan.Zero)
             {
@@ -60,29 +60,99 @@ namespace SuccuPet.Core.Pets
                 actualHours,
                 policy.MaximumOfflineHours);
 
-            petState.Needs.Reduce(
-                PetNeedType.Fullness,
-                (float)(policy.FullnessLossPerHour * appliedHours));
+            double fullSpeedHours = Math.Min(
+                appliedHours,
+                policy.FullSpeedOfflineHours);
 
-            petState.Needs.Reduce(
-                PetNeedType.Energy,
-                (float)(policy.EnergyLossPerHour * appliedHours));
+            double extendedHours = Math.Max(
+                0d,
+                appliedHours - fullSpeedHours);
 
-            petState.Needs.Reduce(
-                PetNeedType.Happiness,
-                (float)(policy.HappinessLossPerHour * appliedHours));
+            double effectiveHours =
+                fullSpeedHours +
+                (extendedHours *
+                    policy.ExtendedOfflineMultiplier);
 
-            petState.Needs.Reduce(
-                PetNeedType.Hygiene,
-                (float)(policy.HygieneLossPerHour * appliedHours));
+            if (petState.IsSleeping)
+            {
+                ApplySleepingProgress(
+                    petState,
+                    policy,
+                    effectiveHours);
+            }
+            else
+            {
+                ApplyAwakeProgress(
+                    petState,
+                    policy,
+                    effectiveHours);
+            }
 
-            petState.MarkNeedsUpdated(utcNow);
+            // Even when offline progress is capped, consume the full elapsed
+            // window so the same time is never processed twice.
+            petState.MarkSimulationUpdated(utcNow);
 
             return new PetDecayResult(
                 applied: true,
                 appliedHours: appliedHours,
                 wasCapped:
                     actualHours > policy.MaximumOfflineHours);
+        }
+
+        private static void ApplyAwakeProgress(
+            PetState petState,
+            PetDecayPolicy policy,
+            double effectiveHours)
+        {
+            petState.Needs.Reduce(
+                PetNeedType.Vitality,
+                (float)(policy.VitalityLossPerHour *
+                    effectiveHours));
+
+            petState.Needs.Reduce(
+                PetNeedType.Rest,
+                (float)(policy.RestLossPerHour *
+                    effectiveHours));
+
+            petState.Needs.Reduce(
+                PetNeedType.Mood,
+                (float)(policy.MoodLossPerHour *
+                    effectiveHours));
+
+            petState.Needs.Reduce(
+                PetNeedType.Allure,
+                (float)(policy.AllureLossPerHour *
+                    effectiveHours));
+        }
+
+        private static void ApplySleepingProgress(
+            PetState petState,
+            PetDecayPolicy policy,
+            double effectiveHours)
+        {
+            double slowedHours =
+                effectiveHours *
+                policy.SleepingNeedsLossMultiplier;
+
+            petState.Needs.Reduce(
+                PetNeedType.Vitality,
+                (float)(policy.VitalityLossPerHour *
+                    slowedHours));
+
+            petState.Needs.Reduce(
+                PetNeedType.Mood,
+                (float)(policy.MoodLossPerHour *
+                    slowedHours));
+
+            petState.Needs.Reduce(
+                PetNeedType.Allure,
+                (float)(policy.AllureLossPerHour *
+                    slowedHours));
+
+            petState.Needs.Restore(
+                PetNeedType.Rest,
+                (float)(policy.SleepRestRecoveryPerHour *
+                    effectiveHours));
         }
     }
 }

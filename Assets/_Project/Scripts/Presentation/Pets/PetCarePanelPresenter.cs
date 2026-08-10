@@ -12,8 +12,6 @@ namespace SuccuPet.Presentation.Pets
 {
     public sealed class PetCarePanelPresenter : MonoBehaviour
     {
-        private const float MinimumMissingRestForReward = 5f;
-
         [Serializable]
         private sealed class NeedView
         {
@@ -199,7 +197,6 @@ namespace SuccuPet.Presentation.Pets
         private PetSession petSession;
         private Coroutine cooldownCoroutine;
         private bool isBound;
-        private bool isSleeping;
         private bool isActionOnCooldown;
 
         private void Start()
@@ -259,7 +256,9 @@ namespace SuccuPet.Presentation.Pets
 
             isBound = true;
 
-            SetSleeping(false, false);
+            RefreshSleepingPresentation(
+                petSession.CurrentPetState.IsSleeping,
+                false);
             Refresh(petSession.CurrentPetState);
 
             SetActionStatus(
@@ -279,39 +278,21 @@ namespace SuccuPet.Presentation.Pets
                 return;
             }
 
+            bool isSleeping =
+                petSession.CurrentPetState.IsSleeping;
+
             if (isSleeping)
             {
-                SetSleeping(false, true);
+                GameEntryPoint.Instance.SetPetSleeping(false);
+                RefreshSleepingPresentation(false, true);
                 SetActionStatus("Your pet is awake.");
                 BeginActionCooldown();
                 return;
             }
 
-            float currentRest =
-                petSession.CurrentPetState.Needs.Rest;
-
-            float missingRest =
-                PetNeeds.MaximumValue - currentRest;
-
-            if (missingRest < MinimumMissingRestForReward)
-            {
-                SetSleeping(true, true);
-                SetActionStatus("Your pet is sleeping.");
-                BeginActionCooldown();
-                return;
-            }
-
-            PetCareActionResult careResult =
-                ExecuteCareAction(
-                    PetCareActionType.Sleep);
-
-            SetSleeping(true, true);
-
-            if (!careResult.IsSuccessful)
-            {
-                SetActionStatus(
-                    $"{careResult.Message} Your pet is sleeping.");
-            }
+            GameEntryPoint.Instance.SetPetSleeping(true);
+            RefreshSleepingPresentation(true, true);
+            SetActionStatus("Your pet is sleeping.");
 
             BeginActionCooldown();
         }
@@ -332,7 +313,7 @@ namespace SuccuPet.Presentation.Pets
             PetCareActionType actionType)
         {
             if (!isBound ||
-                isSleeping ||
+                petSession.CurrentPetState.IsSleeping ||
                 isActionOnCooldown)
             {
                 return;
@@ -373,16 +354,14 @@ namespace SuccuPet.Presentation.Pets
             return careResult;
         }
 
-        private void SetSleeping(
+        private void RefreshSleepingPresentation(
             bool shouldSleep,
             bool playAnimation)
         {
-            isSleeping = shouldSleep;
-
             if (sleepButtonText != null)
             {
                 sleepButtonText.text =
-                    isSleeping
+                    shouldSleep
                         ? "Wake"
                         : "Sleep";
             }
@@ -390,7 +369,7 @@ namespace SuccuPet.Presentation.Pets
             if (playAnimation)
             {
                 TrySetAnimatorTrigger(
-                    isSleeping
+                    shouldSleep
                         ? sleepTriggerName
                         : wakeTriggerName);
             }
@@ -458,7 +437,7 @@ namespace SuccuPet.Presentation.Pets
         {
             bool canUseStandardCare =
                 isBound &&
-                !isSleeping &&
+                !petSession.CurrentPetState.IsSleeping &&
                 !isActionOnCooldown;
 
             SetButtonInteractable(
@@ -484,6 +463,10 @@ namespace SuccuPet.Presentation.Pets
             {
                 return;
             }
+
+            RefreshSleepingPresentation(
+                petState.IsSleeping,
+                false);
 
             SetText(
                 petNameText,

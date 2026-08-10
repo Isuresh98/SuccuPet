@@ -67,8 +67,8 @@ namespace SuccuPet.Application.Pets
                     petState,
                     actionType);
 
-            // Successful care action save.
-            if (careResult.IsSuccessful)
+            // Persist both successful actions and any elapsed simulation.
+            if (careResult.IsSuccessful || decayResult.Applied)
             {
                 repository.Save(petState);
             }

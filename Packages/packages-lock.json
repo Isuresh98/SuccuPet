@@ -1,11 +1,11 @@
 {
   "dependencies": {
     "com.unity.2d.animation": {
-      "version": "10.2.1",
-      "depth": 1,
+      "version": "10.2.3",
+      "depth": 0,
       "source": "registry",
       "dependencies": {
-        "com.unity.2d.common": "9.1.1",
+        "com.unity.2d.common": "9.1.2",
         "com.unity.2d.sprite": "1.0.0",
         "com.unity.collections": "1.2.4",
         "com.unity.modules.animation": "1.0.0",
@@ -26,8 +26,8 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.2d.common": {
-      "version": "9.1.1",
-      "depth": 2,
+      "version": "9.1.2",
+      "depth": 1,
       "source": "registry",
       "dependencies": {
         "com.unity.burst": "1.8.4",
@@ -111,7 +111,7 @@
     },
     "com.unity.collections": {
       "version": "2.6.2",
-      "depth": 2,
+      "depth": 1,
       "source": "registry",
       "dependencies": {
         "com.unity.burst": "1.8.23",
@@ -133,7 +133,7 @@
       "depth": 0,
       "source": "builtin",
       "dependencies": {
-        "com.unity.2d.animation": "10.2.1",
+        "com.unity.2d.animation": "10.2.3",
         "com.unity.2d.pixel-perfect": "5.0.3",
         "com.unity.2d.psdimporter": "9.1.0",
         "com.unity.2d.sprite": "1.0.0",
@@ -187,7 +187,7 @@
     },
     "com.unity.nuget.mono-cecil": {
       "version": "1.11.5",
-      "depth": 3,
+      "depth": 2,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"
@@ -263,7 +263,7 @@
     },
     "com.unity.test-framework.performance": {
       "version": "3.2.0",
-      "depth": 3,
+      "depth": 2,
       "source": "registry",
       "dependencies": {
         "com.unity.test-framework": "1.1.33",

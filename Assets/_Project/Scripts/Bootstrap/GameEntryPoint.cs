@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using SuccuPet.Application.Pets;
 using SuccuPet.Core.Pets;
 using SuccuPet.Infrastructure.Persistence.Pets;
@@ -19,9 +20,15 @@ namespace SuccuPet.Bootstrap
         [SerializeField]
         private string defaultPetDisplayName = "Succu";
 
+        [Header("Persistence")]
+        [Min(5f)]
+        [SerializeField]
+        private float autosaveIntervalSeconds = 30f;
+
         private static GameEntryPoint instance;
 
         private PetSession petSession;
+        private float autosaveTimer;
 
         public static GameEntryPoint Instance => instance;
 
@@ -61,6 +68,9 @@ namespace SuccuPet.Bootstrap
             ConfigureApplication();
             ComposeDependencies();
             InitializeGame();
+
+            SceneManager.activeSceneChanged +=
+                HandleActiveSceneChanged;
         }
 
         private void ConfigureApplication()
@@ -89,9 +99,15 @@ namespace SuccuPet.Bootstrap
                     PetDecayPolicy.Default,
                     repository);
 
+            UpdatePetStateUseCase updateUseCase =
+                new UpdatePetStateUseCase(
+                    PetDecayPolicy.Default,
+                    repository);
+
             petSession = new PetSession(
                 loadUseCase,
-                careUseCase);
+                careUseCase,
+                updateUseCase);
         }
 
         private void InitializeGame()
@@ -175,10 +191,100 @@ namespace SuccuPet.Bootstrap
             return result;
         }
 
+        public SetPetSleepingResult SetPetSleeping(
+            bool shouldSleep)
+        {
+            if (!IsReady)
+            {
+                throw new InvalidOperationException(
+                    "Game is not ready.");
+            }
+
+            SetPetSleepingResult result =
+                petSession.SetSleeping(
+                    shouldSleep,
+                    DateTime.UtcNow);
+
+            if (environmentConfig.EnableDebugLogs &&
+                result.StateChanged)
+            {
+                Debug.Log(
+                    result.IsSleeping
+                        ? "Pet started sleeping."
+                        : "Pet woke up.");
+            }
+
+            return result;
+        }
+
+        private void Update()
+        {
+            if (!IsReady)
+            {
+                return;
+            }
+
+            autosaveTimer += Time.unscaledDeltaTime;
+
+            if (autosaveTimer < autosaveIntervalSeconds)
+            {
+                return;
+            }
+
+            autosaveTimer = 0f;
+            SimulateAndSave();
+        }
+
+        private void OnApplicationPause(bool isPaused)
+        {
+            SimulateAndSave();
+        }
+
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            SimulateAndSave();
+        }
+
+        private void HandleActiveSceneChanged(
+            Scene previousScene,
+            Scene currentScene)
+        {
+            SimulateAndSave();
+        }
+
+        private void OnApplicationQuit()
+        {
+            SimulateAndSave();
+        }
+
+        private void SimulateAndSave()
+        {
+            if (!IsReady)
+            {
+                return;
+            }
+
+            try
+            {
+                petSession.SimulateAndSave(DateTime.UtcNow);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError(
+                    $"Could not save pet state: " +
+                    $"{exception.Message}",
+                    this);
+            }
+        }
+
         private void OnDestroy()
         {
             if (instance == this)
             {
+                SceneManager.activeSceneChanged -=
+                    HandleActiveSceneChanged;
+
+                SimulateAndSave();
                 instance = null;
             }
         }

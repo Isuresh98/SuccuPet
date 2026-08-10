@@ -106,6 +106,26 @@ namespace SuccuPet.Core.Pets
             int previousLevel =
                 petState.Stats.Level;
 
+            if (actionType == PetCareActionType.Sleep)
+            {
+                return CreateRejectedResult(
+                    actionType,
+                    definition.TargetNeed,
+                    previousNeedValue,
+                    previousLevel,
+                    "Use the Sleep/Wake toggle to change sleep state.");
+            }
+
+            if (petState.IsSleeping)
+            {
+                return CreateRejectedResult(
+                    actionType,
+                    definition.TargetNeed,
+                    previousNeedValue,
+                    previousLevel,
+                    "Your pet is sleeping. Wake her before using care actions.");
+            }
+
             float missingNeedValue =
                 MaximumNeedValue - previousNeedValue;
 
@@ -151,6 +171,26 @@ namespace SuccuPet.Core.Pets
                 petState.Stats.Level,
                 true,
                 $"{actionType} completed");
+        }
+
+        private static PetCareActionResult CreateRejectedResult(
+            PetCareActionType actionType,
+            PetNeedType targetNeed,
+            float needValue,
+            int level,
+            string message)
+        {
+            return new PetCareActionResult(
+                actionType,
+                targetNeed,
+                needValue,
+                needValue,
+                0,
+                0f,
+                level,
+                level,
+                false,
+                message);
         }
 
         private static string GetRejectedMessage(

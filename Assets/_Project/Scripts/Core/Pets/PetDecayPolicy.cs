@@ -23,6 +23,10 @@ namespace SuccuPet.Core.Pets
             HygieneLossPerHour;
 
         public double MaximumOfflineHours { get; }
+        public double FullSpeedOfflineHours { get; }
+        public float ExtendedOfflineMultiplier { get; }
+        public float SleepingNeedsLossMultiplier { get; }
+        public float SleepRestRecoveryPerHour { get; }
 
         public static PetDecayPolicy Default { get; } =
             new PetDecayPolicy(
@@ -30,14 +34,22 @@ namespace SuccuPet.Core.Pets
                 energyLossPerHour: 4f,
                 happinessLossPerHour: 2f,
                 hygieneLossPerHour: 1.5f,
-                maximumOfflineHours: 24d);
+                maximumOfflineHours: 24d,
+                fullSpeedOfflineHours: 4d,
+                extendedOfflineMultiplier: 0.5f,
+                sleepingNeedsLossMultiplier: 0.25f,
+                sleepRestRecoveryPerHour: 12.5f);
 
         public PetDecayPolicy(
             float fullnessLossPerHour,
             float energyLossPerHour,
             float happinessLossPerHour,
             float hygieneLossPerHour,
-            double maximumOfflineHours)
+            double maximumOfflineHours,
+            double fullSpeedOfflineHours = 4d,
+            float extendedOfflineMultiplier = 0.5f,
+            float sleepingNeedsLossMultiplier = 0.25f,
+            float sleepRestRecoveryPerHour = 12.5f)
         {
             ValidateRate(
                 fullnessLossPerHour,
@@ -61,11 +73,37 @@ namespace SuccuPet.Core.Pets
                     nameof(maximumOfflineHours));
             }
 
+            if (fullSpeedOfflineHours < 0d ||
+                fullSpeedOfflineHours > maximumOfflineHours)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(fullSpeedOfflineHours));
+            }
+
+            ValidateMultiplier(
+                extendedOfflineMultiplier,
+                nameof(extendedOfflineMultiplier));
+
+            ValidateMultiplier(
+                sleepingNeedsLossMultiplier,
+                nameof(sleepingNeedsLossMultiplier));
+
+            ValidateRate(
+                sleepRestRecoveryPerHour,
+                nameof(sleepRestRecoveryPerHour));
+
             FullnessLossPerHour = fullnessLossPerHour;
             EnergyLossPerHour = energyLossPerHour;
             HappinessLossPerHour = happinessLossPerHour;
             HygieneLossPerHour = hygieneLossPerHour;
             MaximumOfflineHours = maximumOfflineHours;
+            FullSpeedOfflineHours = fullSpeedOfflineHours;
+            ExtendedOfflineMultiplier =
+                extendedOfflineMultiplier;
+            SleepingNeedsLossMultiplier =
+                sleepingNeedsLossMultiplier;
+            SleepRestRecoveryPerHour =
+                sleepRestRecoveryPerHour;
         }
 
         private static void ValidateRate(
@@ -76,6 +114,18 @@ namespace SuccuPet.Core.Pets
             {
                 throw new ArgumentOutOfRangeException(
                     parameterName);
+            }
+        }
+
+        private static void ValidateMultiplier(
+            float value,
+            string parameterName)
+        {
+            if (value < 0f || value > 1f)
+            {
+                throw new ArgumentOutOfRangeException(
+                    parameterName,
+                    "Multiplier must be between 0 and 1.");
             }
         }
     }
