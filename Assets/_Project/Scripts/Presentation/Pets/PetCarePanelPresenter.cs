@@ -261,8 +261,8 @@ namespace SuccuPet.Presentation.Pets
                 false);
             Refresh(petSession.CurrentPetState);
 
-            SetActionStatus(
-                "Choose a care action");
+            RefreshConditionStatus(
+                petSession.CurrentPetState);
         }
 
         private void HandleFeedClicked()
@@ -275,6 +275,13 @@ namespace SuccuPet.Presentation.Pets
         {
             if (!isBound || isActionOnCooldown)
             {
+                return;
+            }
+
+            if (petSession.CurrentPetState.IsInComa)
+            {
+                SetActionStatus(
+                    "Your pet cannot be woken manually during recovery.");
                 return;
             }
 
@@ -358,15 +365,21 @@ namespace SuccuPet.Presentation.Pets
             bool shouldSleep,
             bool playAnimation)
         {
+            bool isInComa =
+                isBound &&
+                petSession.CurrentPetState.IsInComa;
+
             if (sleepButtonText != null)
             {
                 sleepButtonText.text =
-                    shouldSleep
+                    isInComa
+                        ? "Coma"
+                        : shouldSleep
                         ? "Wake"
                         : "Sleep";
             }
 
-            if (playAnimation)
+            if (playAnimation && !isInComa)
             {
                 TrySetAnimatorTrigger(
                     shouldSleep
@@ -435,6 +448,10 @@ namespace SuccuPet.Presentation.Pets
 
         private void RefreshButtonStates()
         {
+            bool isInComa =
+                isBound &&
+                petSession.CurrentPetState.IsInComa;
+
             bool canUseStandardCare =
                 isBound &&
                 !petSession.CurrentPetState.IsSleeping &&
@@ -454,7 +471,9 @@ namespace SuccuPet.Presentation.Pets
 
             SetButtonInteractable(
                 sleepButton,
-                isBound && !isActionOnCooldown);
+                isBound &&
+                !isInComa &&
+                !isActionOnCooldown);
         }
 
         private void Refresh(PetState petState)
@@ -507,6 +526,46 @@ namespace SuccuPet.Presentation.Pets
                 allureView,
                 "Allure",
                 petState.Needs.Allure);
+
+            RefreshConditionStatus(petState);
+        }
+
+        private void RefreshConditionStatus(PetState petState)
+        {
+            if (petState.IsInComa)
+            {
+                bool recoveryCareReady =
+                    petState.Needs.Vitality > 50f &&
+                    petState.Needs.Rest > 50f &&
+                    petState.Needs.Mood > 50f &&
+                    petState.Needs.Allure > 50f;
+
+                SetActionStatus(
+                    recoveryCareReady
+                        ? "Recovery care is working. Keep every need above halfway."
+                        : "Your pet is in a care coma. Restore every need above halfway.");
+                return;
+            }
+
+            switch (petState.Health.Status)
+            {
+                case PetHealthStatus.Critical:
+                    SetActionStatus(
+                        "Your pet is barely responding. Give consistent care now.");
+                    break;
+
+                case PetHealthStatus.Fatigued:
+                    SetActionStatus(
+                        "Your pet looks fatigued and needs steadier care.");
+                    break;
+
+                default:
+                    SetActionStatus(
+                        petState.IsSleeping
+                            ? "Your pet is sleeping."
+                            : "Your pet feels well cared for.");
+                    break;
+            }
         }
 
         private void RefreshNeedView(
