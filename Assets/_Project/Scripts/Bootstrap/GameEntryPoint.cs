@@ -28,7 +28,8 @@ namespace SuccuPet.Bootstrap
         public EnvironmentConfig EnvironmentConfig =>
             environmentConfig;
 
-        public PetSession PetSession => petSession;
+        public PetSession PetSession =>
+            petSession;
 
         public bool IsReady =>
             petSession != null &&
@@ -140,22 +141,35 @@ namespace SuccuPet.Bootstrap
                     actionType,
                     DateTime.UtcNow);
 
+            PetCareActionResult careResult =
+                result.CareResult;
+
+            if (!careResult.IsSuccessful)
+            {
+                if (environmentConfig.EnableDebugLogs)
+                {
+                    Debug.LogWarning(
+                        $"Pet action rejected | " +
+                        $"Action: {careResult.ActionType} | " +
+                        $"Need: {careResult.TargetNeed} | " +
+                        $"Value: {careResult.PreviousNeedValue:0.0} | " +
+                        $"Reason: {careResult.Message}");
+                }
+
+                return result;
+            }
+
             if (environmentConfig.EnableDebugLogs)
             {
-                PetCareActionResult careResult =
-                    result.CareResult;
-
                 Debug.Log(
                     $"Pet action completed | " +
                     $"Action: {careResult.ActionType} | " +
                     $"Need: {careResult.TargetNeed} | " +
-                    $"Value: " +
-                    $"{careResult.PreviousNeedValue:0.0} " +
-                    $"-> {careResult.CurrentNeedValue:0.0} | " +
-                    $"XP: " +
-                    $"{petSession.CurrentPetState.Stats.CurrentExperience} | " +
-                    $"Affection: " +
-                    $"{petSession.CurrentPetState.Stats.Affection:0.0}");
+                    $"Value: {careResult.PreviousNeedValue:0.0} -> " +
+                    $"{careResult.CurrentNeedValue:0.0} | " +
+                    $"XP Earned: {careResult.ExperienceEarned} | " +
+                    $"Affection Earned: " +
+                    $"{careResult.AffectionEarned:0.0}");
             }
 
             return result;
