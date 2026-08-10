@@ -1,6 +1,6 @@
 ﻿<Solution>
-  <Project Path="SuccuPet.Core.csproj" />
   <Project Path="SuccuPet.Application.csproj" />
+  <Project Path="SuccuPet.Core.csproj" />
   <Project Path="SuccuPet.Bootstrap.csproj" />
   <Project Path="SuccuPet.Infrastructure.csproj" />
   <Project Path="SuccuPet.Presentation.csproj" />
