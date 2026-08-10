@@ -1,0 +1,16 @@
+{
+    "name": "SuccuPet.Application",
+    "rootNamespace": "",
+    "references": [
+        "GUID:9521e229ffdf444f4886ca5e4b1a8c91"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

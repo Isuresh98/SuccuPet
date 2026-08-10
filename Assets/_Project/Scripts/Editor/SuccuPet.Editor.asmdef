@@ -1,0 +1,22 @@
+{
+    "name": "SuccuPet.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:9521e229ffdf444f4886ca5e4b1a8c91",
+        "GUID:999dc9040c90949fda82f3b4e04b2912",
+        "GUID:2913e246cbeca439b968f7aa61d00ce6",
+        "GUID:0220413142ca547b6a84e3f425343209",
+        "GUID:7276b431b9ec54a908b5dd16a8146710"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [
+        "Editor"
+    ],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
