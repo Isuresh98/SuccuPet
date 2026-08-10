@@ -20,12 +20,17 @@ namespace SuccuPet.Application.Pets
     public sealed class PerformPetCareActionUseCase
     {
         private readonly PetDecayPolicy decayPolicy;
+        private readonly IPetStateRepository repository;
 
         public PerformPetCareActionUseCase(
-            PetDecayPolicy decayPolicy)
+            PetDecayPolicy decayPolicy,
+            IPetStateRepository repository)
         {
             this.decayPolicy = decayPolicy ??
                 throw new ArgumentNullException(nameof(decayPolicy));
+
+            this.repository = repository ??
+                throw new ArgumentNullException(nameof(repository));
         }
 
         public PerformPetCareActionResult Execute(
@@ -55,6 +60,8 @@ namespace SuccuPet.Application.Pets
                 PetCareService.Perform(
                     petState,
                     actionType);
+
+            repository.Save(petState);
 
             return new PerformPetCareActionResult(
                 decayResult,

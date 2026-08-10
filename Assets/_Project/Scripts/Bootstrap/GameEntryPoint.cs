@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using SuccuPet.Core.Pets;
 using SuccuPet.Application.Pets;
+using SuccuPet.Infrastructure.Persistence.Pets;
 
 namespace SuccuPet.Bootstrap
 {
@@ -65,36 +66,57 @@ namespace SuccuPet.Bootstrap
             }
         }
 
-       private void RunPetDomainSmokeTest()
+    private void RunPetDomainSmokeTest()
 {
     DateTime utcNow = DateTime.UtcNow;
 
-    PetState petState = PetState.CreateNew(
+    JsonFilePetStateRepository repository =
+        new JsonFilePetStateRepository(
+            "succupet-smoke-pet-state.json");
+
+    PetState initialState = PetState.CreateNew(
         petId: "mock-pet-001",
         displayName: "Mock Pet",
         utcNow: utcNow.AddHours(-2d));
 
-    PerformPetCareActionUseCase useCase =
-        new PerformPetCareActionUseCase(
+    repository.Save(initialState);
+
+    LoadOrCreatePetStateUseCase loadUseCase =
+        new LoadOrCreatePetStateUseCase(
+            repository,
             PetDecayPolicy.Default);
 
-    PerformPetCareActionResult result =
-        useCase.Execute(
-            petState,
+    LoadPetStateResult loadResult =
+        loadUseCase.Execute(
+            petId: "mock-pet-001",
+            displayName: "Mock Pet",
+            utcNow: utcNow);
+
+    PerformPetCareActionUseCase careUseCase =
+        new PerformPetCareActionUseCase(
+            PetDecayPolicy.Default,
+            repository);
+
+    PerformPetCareActionResult careResult =
+        careUseCase.Execute(
+            loadResult.PetState,
             PetCareActionType.Feed,
             utcNow);
 
-    PetCareActionResult careResult =
-        result.CareResult;
+    bool loadedAgain =
+        repository.TryLoad(out PetState verifiedState);
 
     Debug.Log(
-        $"Pet care check | " +
-        $"Decay hours: {result.DecayResult.AppliedHours:0.00} | " +
-        $"Action: {careResult.ActionType} | " +
-        $"Fullness: {careResult.PreviousNeedValue:0.0} " +
-        $"-> {careResult.CurrentNeedValue:0.0} | " +
-        $"XP: {petState.Stats.CurrentExperience} | " +
-        $"Affection: {petState.Stats.Affection:0.0}");
+        $"Pet save check | " +
+        $"Loaded: {loadedAgain} | " +
+        $"Created: {loadResult.WasCreated} | " +
+        $"Offline hours: " +
+        $"{loadResult.DecayResult.AppliedHours:0.00} | " +
+        $"Fullness: {verifiedState.Needs.Fullness:0.0} | " +
+        $"XP: {verifiedState.Stats.CurrentExperience} | " +
+        $"Affection: {verifiedState.Stats.Affection:0.0} | " +
+        $"File: {repository.FilePath}");
 }
+
     }
 }
