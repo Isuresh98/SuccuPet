@@ -37,11 +37,12 @@ namespace SuccuPet.Bootstrap
             InitializeGame();
         }
 
-        private void ConfigureApplication()
-        {
-            UnityEngine.Application.targetFrameRate = 60;
-            Screen.sleepTimeout = SleepTimeout.NeverSleep;
-        }
+       private void ConfigureApplication()
+{
+    QualitySettings.vSyncCount = 0;
+    UnityEngine.Application.targetFrameRate = 60;
+    Screen.sleepTimeout = SleepTimeout.SystemSetting;
+}
 
         private void InitializeGame()
         {
