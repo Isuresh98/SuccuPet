@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using SuccuPet.Core.Pets;
+using SuccuPet.Application.Pets;
 
 namespace SuccuPet.Bootstrap
 {
@@ -40,12 +41,12 @@ namespace SuccuPet.Bootstrap
             InitializeGame();
         }
 
-        private void ConfigureApplication()
-        {
-            QualitySettings.vSyncCount = 0;
-            Application.targetFrameRate = 60;
-            Screen.sleepTimeout = SleepTimeout.SystemSetting;
-        }
+       private void ConfigureApplication()
+{
+    QualitySettings.vSyncCount = 0;
+    UnityEngine.Application.targetFrameRate = 60;
+    Screen.sleepTimeout = SleepTimeout.SystemSetting;
+}
 
         private void InitializeGame()
         {
@@ -64,27 +65,36 @@ namespace SuccuPet.Bootstrap
             }
         }
 
-        private void RunPetDomainSmokeTest()
-        {
-            DateTime utcNow = DateTime.UtcNow;
+       private void RunPetDomainSmokeTest()
+{
+    DateTime utcNow = DateTime.UtcNow;
 
-            PetState petState = PetState.CreateNew(
-                petId: "mock-pet-001",
-                displayName: "Mock Pet",
-                utcNow: utcNow.AddHours(-2d));
+    PetState petState = PetState.CreateNew(
+        petId: "mock-pet-001",
+        displayName: "Mock Pet",
+        utcNow: utcNow.AddHours(-2d));
 
-            PetDecayResult result = PetNeedsDecayService.Apply(
-                petState,
-                utcNow,
-                PetDecayPolicy.Default);
+    PerformPetCareActionUseCase useCase =
+        new PerformPetCareActionUseCase(
+            PetDecayPolicy.Default);
 
-            Debug.Log(
-                $"Pet domain check | " +
-                $"Hours: {result.AppliedHours:0.00} | " +
-                $"Fullness: {petState.Needs.Fullness:0.0} | " +
-                $"Energy: {petState.Needs.Energy:0.0} | " +
-                $"Happiness: {petState.Needs.Happiness:0.0} | " +
-                $"Hygiene: {petState.Needs.Hygiene:0.0}");
-        }
+    PerformPetCareActionResult result =
+        useCase.Execute(
+            petState,
+            PetCareActionType.Feed,
+            utcNow);
+
+    PetCareActionResult careResult =
+        result.CareResult;
+
+    Debug.Log(
+        $"Pet care check | " +
+        $"Decay hours: {result.DecayResult.AppliedHours:0.00} | " +
+        $"Action: {careResult.ActionType} | " +
+        $"Fullness: {careResult.PreviousNeedValue:0.0} " +
+        $"-> {careResult.CurrentNeedValue:0.0} | " +
+        $"XP: {petState.Stats.CurrentExperience} | " +
+        $"Affection: {petState.Stats.Affection:0.0}");
+}
     }
 }
