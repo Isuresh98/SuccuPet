@@ -39,6 +39,19 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                 lastSimulationUtcTicks =
                     petState.LastSimulationUtc.Ticks,
 
+                health = petState.Health.Value,
+                healthEvaluationProgressMinutes =
+                    petState.Health.EvaluationProgressMinutes,
+
+                isInComa = petState.IsInComa,
+                comaStartedUtcTicks =
+                    petState.ComaStartedUtc.HasValue
+                        ? petState.ComaStartedUtc.Value.Ticks
+                        : 0L,
+
+                comaRecoveryProgressHours =
+                    petState.Health.ComaRecoveryProgressHours,
+
                 fullness = petState.Needs.Fullness,
                 energy = petState.Needs.Energy,
                 happiness = petState.Needs.Happiness,
@@ -77,6 +90,9 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
             DateTime lastSimulationUtc;
             bool isSleeping;
             DateTime? sleepStartedUtc;
+            PetHealth health;
+            bool isInComa;
+            DateTime? comaStartedUtc;
 
             if (saveData.schemaVersion == 1)
             {
@@ -86,6 +102,10 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
 
                 isSleeping = false;
                 sleepStartedUtc = null;
+
+                health = new PetHealth();
+                isInComa = false;
+                comaStartedUtc = null;
             }
             else
             {
@@ -99,6 +119,31 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                         saveData.sleepStartedUtcTicks,
                         nameof(saveData.sleepStartedUtcTicks))
                     : (DateTime?)null;
+
+                if (saveData.schemaVersion == 2)
+                {
+                    health = new PetHealth();
+                    isInComa = false;
+                    comaStartedUtc = null;
+                }
+                else
+                {
+                    health = new PetHealth(
+                        saveData.health,
+                        saveData.healthEvaluationProgressMinutes,
+                        saveData.comaRecoveryProgressHours);
+
+                    isInComa = saveData.isInComa ||
+                        health.Value <= PetHealth.MinimumValue;
+
+                    comaStartedUtc = saveData.isInComa
+                        ? ParseUtcTicks(
+                            saveData.comaStartedUtcTicks,
+                            nameof(saveData.comaStartedUtcTicks))
+                        : isInComa
+                            ? lastSimulationUtc
+                            : (DateTime?)null;
+                }
             }
 
             PetProfile profile = new PetProfile(
@@ -124,7 +169,10 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                 stats,
                 lastSimulationUtc,
                 isSleeping,
-                sleepStartedUtc);
+                sleepStartedUtc,
+                health,
+                isInComa,
+                comaStartedUtc);
         }
 
         private static DateTime ParseUtcTicks(

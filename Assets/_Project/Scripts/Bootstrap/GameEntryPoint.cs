@@ -140,7 +140,9 @@ namespace SuccuPet.Bootstrap
                 $"Pet ID: {petState.Profile.PetId} | " +
                 $"Name: {petState.Profile.DisplayName} | " +
                 $"Level: {petState.Stats.Level} | " +
-                $"XP: {petState.Stats.CurrentExperience}");
+                $"XP: {petState.Stats.CurrentExperience} | " +
+                $"Health: {petState.Health.Value} | " +
+                $"Coma: {petState.IsInComa}");
         }
 
         public PerformPetCareActionResult PerformCareAction(
@@ -266,7 +268,37 @@ namespace SuccuPet.Bootstrap
 
             try
             {
-                petSession.SimulateAndSave(DateTime.UtcNow);
+                PetDecayResult result =
+                    petSession.SimulateAndSave(DateTime.UtcNow);
+
+                if (!environmentConfig.EnableDebugLogs)
+                {
+                    return;
+                }
+
+                if (result.EnteredComa)
+                {
+                    Debug.LogWarning(
+                        "Pet entered a care coma. " +
+                        "All four needs must remain above halfway " +
+                        "for the recovery window.",
+                        this);
+                }
+                else if (result.RecoveredFromComa)
+                {
+                    Debug.Log(
+                        "Pet recovered from the care coma.",
+                        this);
+                }
+                else if (result.HealthChanged)
+                {
+                    Debug.Log(
+                        $"Hidden Health updated | " +
+                        $"{result.PreviousHealth} -> " +
+                        $"{result.CurrentHealth} | " +
+                        $"Evaluations: {result.HealthEvaluations}",
+                        this);
+                }
             }
             catch (Exception exception)
             {
