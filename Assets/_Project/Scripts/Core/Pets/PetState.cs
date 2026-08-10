@@ -7,13 +7,20 @@ namespace SuccuPet.Core.Pets
         public PetProfile Profile { get; }
         public PetNeeds Needs { get; }
         public PetStats Stats { get; }
-        public DateTime LastNeedsUpdateUtc { get; private set; }
+        public DateTime LastSimulationUtc { get; private set; }
+        public bool IsSleeping { get; private set; }
+        public DateTime? SleepStartedUtc { get; private set; }
+
+        // Retained so older callers can move to LastSimulationUtc gradually.
+        public DateTime LastNeedsUpdateUtc => LastSimulationUtc;
 
         public PetState(
             PetProfile profile,
             PetNeeds needs,
             PetStats stats,
-            DateTime lastNeedsUpdateUtc)
+            DateTime lastSimulationUtc,
+            bool isSleeping = false,
+            DateTime? sleepStartedUtc = null)
         {
             Profile = profile ??
                 throw new ArgumentNullException(nameof(profile));
@@ -24,14 +31,26 @@ namespace SuccuPet.Core.Pets
             Stats = stats ??
                 throw new ArgumentNullException(nameof(stats));
 
-            if (lastNeedsUpdateUtc.Kind != DateTimeKind.Utc)
+            if (lastSimulationUtc.Kind != DateTimeKind.Utc)
             {
                 throw new ArgumentException(
-                    "Needs update time must use UTC.",
-                    nameof(lastNeedsUpdateUtc));
+                    "Simulation time must use UTC.",
+                    nameof(lastSimulationUtc));
             }
 
-            LastNeedsUpdateUtc = lastNeedsUpdateUtc;
+            if (sleepStartedUtc.HasValue &&
+                sleepStartedUtc.Value.Kind != DateTimeKind.Utc)
+            {
+                throw new ArgumentException(
+                    "Sleep start time must use UTC.",
+                    nameof(sleepStartedUtc));
+            }
+
+            LastSimulationUtc = lastSimulationUtc;
+            IsSleeping = isSleeping;
+            SleepStartedUtc = isSleeping
+                ? sleepStartedUtc ?? lastSimulationUtc
+                : null;
         }
 
         public static PetState CreateNew(
@@ -51,9 +70,55 @@ namespace SuccuPet.Core.Pets
                 utcNow);
         }
 
+        public bool StartSleeping(DateTime utcNow)
+        {
+            ValidateUtc(utcNow, nameof(utcNow));
+
+            if (IsSleeping)
+            {
+                return false;
+            }
+
+            IsSleeping = true;
+            SleepStartedUtc = utcNow;
+            return true;
+        }
+
+        public bool Wake(DateTime utcNow)
+        {
+            ValidateUtc(utcNow, nameof(utcNow));
+
+            if (!IsSleeping)
+            {
+                return false;
+            }
+
+            IsSleeping = false;
+            SleepStartedUtc = null;
+            return true;
+        }
+
+        internal void MarkSimulationUpdated(DateTime utcNow)
+        {
+            ValidateUtc(utcNow, nameof(utcNow));
+            LastSimulationUtc = utcNow;
+        }
+
         internal void MarkNeedsUpdated(DateTime utcNow)
         {
-            LastNeedsUpdateUtc = utcNow;
+            MarkSimulationUpdated(utcNow);
+        }
+
+        private static void ValidateUtc(
+            DateTime value,
+            string parameterName)
+        {
+            if (value.Kind != DateTimeKind.Utc)
+            {
+                throw new ArgumentException(
+                    "Time must use UTC.",
+                    parameterName);
+            }
         }
     }
 }

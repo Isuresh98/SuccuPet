@@ -7,6 +7,7 @@ namespace SuccuPet.Application.Pets
     {
         private readonly LoadOrCreatePetStateUseCase loadUseCase;
         private readonly PerformPetCareActionUseCase careUseCase;
+        private readonly UpdatePetStateUseCase updateUseCase;
 
         public PetState CurrentPetState { get; private set; }
 
@@ -19,7 +20,8 @@ namespace SuccuPet.Application.Pets
 
         public PetSession(
             LoadOrCreatePetStateUseCase loadUseCase,
-            PerformPetCareActionUseCase careUseCase)
+            PerformPetCareActionUseCase careUseCase,
+            UpdatePetStateUseCase updateUseCase)
         {
             this.loadUseCase = loadUseCase ??
                 throw new ArgumentNullException(
@@ -28,6 +30,10 @@ namespace SuccuPet.Application.Pets
             this.careUseCase = careUseCase ??
                 throw new ArgumentNullException(
                     nameof(careUseCase));
+
+            this.updateUseCase = updateUseCase ??
+                throw new ArgumentNullException(
+                    nameof(updateUseCase));
         }
 
         public LoadPetStateResult Initialize(
@@ -69,6 +75,36 @@ namespace SuccuPet.Application.Pets
             StateChanged?.Invoke(CurrentPetState);
             CareActionPerformed?.Invoke(result);
 
+            return result;
+        }
+
+        public SetPetSleepingResult SetSleeping(
+            bool shouldSleep,
+            DateTime utcNow)
+        {
+            EnsureInitialized();
+
+            SetPetSleepingResult result =
+                updateUseCase.SetSleeping(
+                    CurrentPetState,
+                    shouldSleep,
+                    utcNow);
+
+            StateChanged?.Invoke(CurrentPetState);
+            return result;
+        }
+
+        public PetDecayResult SimulateAndSave(
+            DateTime utcNow)
+        {
+            EnsureInitialized();
+
+            PetDecayResult result =
+                updateUseCase.SimulateAndSave(
+                    CurrentPetState,
+                    utcNow);
+
+            StateChanged?.Invoke(CurrentPetState);
             return result;
         }
 

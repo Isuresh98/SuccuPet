@@ -1,7 +1,11 @@
 ﻿<Solution>
   <Project Path="SuccuPet.Application.csproj" />
   <Project Path="SuccuPet.Core.csproj" />
+  <Project Path="Unity.2D.Animation.Samples.Runtime.csproj" />
   <Project Path="SuccuPet.Presentation.csproj" />
   <Project Path="SuccuPet.Bootstrap.csproj" />
   <Project Path="SuccuPet.Infrastructure.csproj" />
+  <Project Path="Unity.2D.Animation.Samples.Dependency.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
+  <Project Path="Unity.2D.Animation.Samples.Editor.csproj" />
 </Solution>

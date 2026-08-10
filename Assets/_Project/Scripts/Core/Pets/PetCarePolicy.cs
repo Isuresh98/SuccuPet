@@ -12,6 +12,9 @@ namespace SuccuPet.Core.Pets
                 experienceReward: 10,
                 affectionReward: 3f);
 
+        // Sleep is now handled by UpdatePetStateUseCase. The legacy values are
+        // retained here because PetCareActionDefinition requires positive
+        // amounts, but PetCareService rejects direct Sleep care requests.
         private static readonly PetCareActionDefinition SleepDefinition =
             new PetCareActionDefinition(
                 PetCareActionType.Sleep,

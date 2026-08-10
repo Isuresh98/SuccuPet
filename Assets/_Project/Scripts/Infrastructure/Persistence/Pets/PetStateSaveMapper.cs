@@ -26,9 +26,18 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                     CultureInfo.InvariantCulture),
 
                 lastNeedsUpdateUtc =
-                    petState.LastNeedsUpdateUtc.ToString(
+                    petState.LastSimulationUtc.ToString(
                         "O",
                         CultureInfo.InvariantCulture),
+
+                isSleeping = petState.IsSleeping,
+                sleepStartedUtcTicks =
+                    petState.SleepStartedUtc.HasValue
+                        ? petState.SleepStartedUtc.Value.Ticks
+                        : 0L,
+
+                lastSimulationUtcTicks =
+                    petState.LastSimulationUtc.Ticks,
 
                 fullness = petState.Needs.Fullness,
                 energy = petState.Needs.Energy,
@@ -52,8 +61,9 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                     "Pet save data is missing.");
             }
 
-            if (saveData.schemaVersion !=
-                PetSaveData.CurrentSchemaVersion)
+            if (saveData.schemaVersion < 1 ||
+                saveData.schemaVersion >
+                    PetSaveData.CurrentSchemaVersion)
             {
                 throw new InvalidDataException(
                     $"Unsupported save version: " +
@@ -64,9 +74,32 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                 saveData.createdAtUtc,
                 nameof(saveData.createdAtUtc));
 
-            DateTime lastNeedsUpdateUtc = ParseUtcDateTime(
-                saveData.lastNeedsUpdateUtc,
-                nameof(saveData.lastNeedsUpdateUtc));
+            DateTime lastSimulationUtc;
+            bool isSleeping;
+            DateTime? sleepStartedUtc;
+
+            if (saveData.schemaVersion == 1)
+            {
+                lastSimulationUtc = ParseUtcDateTime(
+                    saveData.lastNeedsUpdateUtc,
+                    nameof(saveData.lastNeedsUpdateUtc));
+
+                isSleeping = false;
+                sleepStartedUtc = null;
+            }
+            else
+            {
+                lastSimulationUtc = ParseUtcTicks(
+                    saveData.lastSimulationUtcTicks,
+                    nameof(saveData.lastSimulationUtcTicks));
+
+                isSleeping = saveData.isSleeping;
+                sleepStartedUtc = isSleeping
+                    ? ParseUtcTicks(
+                        saveData.sleepStartedUtcTicks,
+                        nameof(saveData.sleepStartedUtcTicks))
+                    : (DateTime?)null;
+            }
 
             PetProfile profile = new PetProfile(
                 saveData.petId,
@@ -89,7 +122,24 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                 profile,
                 needs,
                 stats,
-                lastNeedsUpdateUtc);
+                lastSimulationUtc,
+                isSleeping,
+                sleepStartedUtc);
+        }
+
+        private static DateTime ParseUtcTicks(
+            long ticks,
+            string fieldName)
+        {
+            if (ticks <= DateTime.MinValue.Ticks ||
+                ticks > DateTime.MaxValue.Ticks)
+            {
+                throw new InvalidDataException(
+                    $"Save field '{fieldName}' " +
+                    "does not contain valid UTC ticks.");
+            }
+
+            return new DateTime(ticks, DateTimeKind.Utc);
         }
 
         private static DateTime ParseUtcDateTime(
