@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using SuccuPet.Application.Pets;
 using SuccuPet.Bootstrap;
@@ -10,36 +12,104 @@ namespace SuccuPet.Presentation.Pets
 {
     public sealed class PetCarePanelPresenter : MonoBehaviour
     {
+        private const float MinimumMissingRestForReward = 5f;
+
         [Serializable]
         private sealed class NeedView
         {
             [SerializeField]
+            private TMP_Text labelText;
+
+            [SerializeField]
             private Slider slider;
+
+            [SerializeField]
+            private Image fillImage;
 
             [SerializeField]
             private TMP_Text valueText;
 
-            public void Refresh(float value)
+            public void Refresh(
+                string label,
+                float value,
+                Color healthyColor,
+                Color warningColor,
+                Color criticalColor)
             {
                 float clampedValue = Mathf.Clamp(
                     value,
-                    0f,
-                    100f);
+                    PetNeeds.MinimumValue,
+                    PetNeeds.MaximumValue);
+
+                if (labelText != null)
+                {
+                    labelText.text = label;
+                }
 
                 if (slider != null)
                 {
-                    slider.minValue = 0f;
-                    slider.maxValue = 100f;
+                    slider.minValue = PetNeeds.MinimumValue;
+                    slider.maxValue = PetNeeds.MaximumValue;
+                    slider.SetValueWithoutNotify(clampedValue);
+                }
 
-                    slider.SetValueWithoutNotify(
-                        clampedValue);
+                Image targetFillImage = ResolveFillImage();
+
+                if (targetFillImage != null)
+                {
+                    targetFillImage.color = GetStatusColor(
+                        clampedValue,
+                        healthyColor,
+                        warningColor,
+                        criticalColor);
                 }
 
                 if (valueText != null)
                 {
-                    valueText.text =
-                        $"{clampedValue:0}/100";
+                    valueText.text = string.Empty;
+
+                    if (valueText.gameObject.activeSelf)
+                    {
+                        valueText.gameObject.SetActive(false);
+                    }
                 }
+            }
+
+            private Image ResolveFillImage()
+            {
+                if (fillImage != null)
+                {
+                    return fillImage;
+                }
+
+                if (slider == null || slider.fillRect == null)
+                {
+                    return null;
+                }
+
+                fillImage =
+                    slider.fillRect.GetComponent<Image>();
+
+                return fillImage;
+            }
+
+            private static Color GetStatusColor(
+                float value,
+                Color healthyColor,
+                Color warningColor,
+                Color criticalColor)
+            {
+                if (value >= 60f)
+                {
+                    return healthyColor;
+                }
+
+                if (value >= 30f)
+                {
+                    return warningColor;
+                }
+
+                return criticalColor;
             }
         }
 
@@ -60,37 +130,77 @@ namespace SuccuPet.Presentation.Pets
         private TMP_Text coinsText;
 
         [Header("Pet Needs")]
+        [FormerlySerializedAs("fullnessView")]
         [SerializeField]
-        private NeedView fullnessView;
+        private NeedView vitalityView;
+
+        [FormerlySerializedAs("energyView")]
+        [SerializeField]
+        private NeedView restView;
+
+        [FormerlySerializedAs("happinessView")]
+        [SerializeField]
+        private NeedView moodView;
+
+        [FormerlySerializedAs("hygieneView")]
+        [SerializeField]
+        private NeedView allureView;
+
+        [Header("Need Bar Colors")]
+        [SerializeField]
+        private Color healthyColor =
+            new Color(0.20f, 0.78f, 0.35f, 1f);
 
         [SerializeField]
-        private NeedView energyView;
+        private Color warningColor =
+            new Color(1f, 0.76f, 0.15f, 1f);
 
         [SerializeField]
-        private NeedView happinessView;
-
-        [SerializeField]
-        private NeedView hygieneView;
+        private Color criticalColor =
+            new Color(0.92f, 0.22f, 0.22f, 1f);
 
         [Header("Care Buttons")]
         [SerializeField]
         private Button feedButton;
 
+        [FormerlySerializedAs("restButton")]
         [SerializeField]
-        private Button restButton;
+        private Button sleepButton;
 
         [SerializeField]
         private Button playButton;
 
+        [FormerlySerializedAs("cleanButton")]
         [SerializeField]
-        private Button cleanButton;
+        private Button batheButton;
+
+        [SerializeField]
+        private TMP_Text sleepButtonText;
+
+        [Header("Sleep Presentation")]
+        [SerializeField]
+        private Animator petAnimator;
+
+        [SerializeField]
+        private string sleepTriggerName = "Sleep";
+
+        [SerializeField]
+        private string wakeTriggerName = "Wake";
 
         [Header("Action Feedback")]
         [SerializeField]
         private TMP_Text actionStatusText;
 
+        [Header("Action Cooldown")]
+        [Min(0f)]
+        [SerializeField]
+        private float actionCooldownSeconds = 1f;
+
         private PetSession petSession;
+        private Coroutine cooldownCoroutine;
         private bool isBound;
+        private bool isSleeping;
+        private bool isActionOnCooldown;
 
         private void Start()
         {
@@ -129,64 +239,112 @@ namespace SuccuPet.Presentation.Pets
             }
 
             petSession = session;
-
             petSession.StateChanged += Refresh;
 
-            feedButton.onClick.AddListener(
+            AddButtonListener(
+                feedButton,
                 HandleFeedClicked);
 
-            restButton.onClick.AddListener(
-                HandleRestClicked);
+            AddButtonListener(
+                sleepButton,
+                HandleSleepClicked);
 
-            playButton.onClick.AddListener(
+            AddButtonListener(
+                playButton,
                 HandlePlayClicked);
 
-            cleanButton.onClick.AddListener(
-                HandleCleanClicked);
+            AddButtonListener(
+                batheButton,
+                HandleBatheClicked);
 
             isBound = true;
 
+            SetSleeping(false, false);
             Refresh(petSession.CurrentPetState);
 
-            if (actionStatusText != null)
-            {
-                actionStatusText.text =
-                    "Choose a care action";
-            }
+            SetActionStatus(
+                "Choose a care action");
         }
 
         private void HandleFeedClicked()
         {
-            ExecuteCareAction(
+            TryExecuteCareAction(
                 PetCareActionType.Feed);
         }
 
-        private void HandleRestClicked()
+        private void HandleSleepClicked()
         {
-            ExecuteCareAction(
-                PetCareActionType.Rest);
-        }
-
-        private void HandlePlayClicked()
-        {
-            ExecuteCareAction(
-                PetCareActionType.Play);
-        }
-
-        private void HandleCleanClicked()
-        {
-            ExecuteCareAction(
-                PetCareActionType.Clean);
-        }
-
-        private void ExecuteCareAction(
-            PetCareActionType actionType)
-        {
-            if (!isBound)
+            if (!isBound || isActionOnCooldown)
             {
                 return;
             }
 
+            if (isSleeping)
+            {
+                SetSleeping(false, true);
+                SetActionStatus("Your pet is awake.");
+                BeginActionCooldown();
+                return;
+            }
+
+            float currentRest =
+                petSession.CurrentPetState.Needs.Rest;
+
+            float missingRest =
+                PetNeeds.MaximumValue - currentRest;
+
+            if (missingRest < MinimumMissingRestForReward)
+            {
+                SetSleeping(true, true);
+                SetActionStatus("Your pet is sleeping.");
+                BeginActionCooldown();
+                return;
+            }
+
+            PetCareActionResult careResult =
+                ExecuteCareAction(
+                    PetCareActionType.Sleep);
+
+            SetSleeping(true, true);
+
+            if (!careResult.IsSuccessful)
+            {
+                SetActionStatus(
+                    $"{careResult.Message} Your pet is sleeping.");
+            }
+
+            BeginActionCooldown();
+        }
+
+        private void HandlePlayClicked()
+        {
+            TryExecuteCareAction(
+                PetCareActionType.Play);
+        }
+
+        private void HandleBatheClicked()
+        {
+            TryExecuteCareAction(
+                PetCareActionType.Bathe);
+        }
+
+        private void TryExecuteCareAction(
+            PetCareActionType actionType)
+        {
+            if (!isBound ||
+                isSleeping ||
+                isActionOnCooldown)
+            {
+                return;
+            }
+
+            ExecuteCareAction(actionType);
+            BeginActionCooldown();
+        }
+
+        private PetCareActionResult ExecuteCareAction(
+            PetCareActionType actionType)
+        {
             PerformPetCareActionResult result =
                 GameEntryPoint.Instance.PerformCareAction(
                     actionType);
@@ -194,22 +352,130 @@ namespace SuccuPet.Presentation.Pets
             PetCareActionResult careResult =
                 result.CareResult;
 
-            if (actionStatusText == null)
+            if (!careResult.IsSuccessful)
+            {
+                SetActionStatus(careResult.Message);
+                return careResult;
+            }
+
+            string actionName =
+                PetCarePolicy.GetActionDisplayName(
+                    careResult.ActionType);
+
+            string levelUpMessage =
+                careResult.DidLevelUp
+                    ? $" Level Up! Lv.{careResult.CurrentLevel}"
+                    : string.Empty;
+
+            SetActionStatus(
+                $"{actionName} completed.{levelUpMessage}");
+
+            return careResult;
+        }
+
+        private void SetSleeping(
+            bool shouldSleep,
+            bool playAnimation)
+        {
+            isSleeping = shouldSleep;
+
+            if (sleepButtonText != null)
+            {
+                sleepButtonText.text =
+                    isSleeping
+                        ? "Wake"
+                        : "Sleep";
+            }
+
+            if (playAnimation)
+            {
+                TrySetAnimatorTrigger(
+                    isSleeping
+                        ? sleepTriggerName
+                        : wakeTriggerName);
+            }
+
+            RefreshButtonStates();
+        }
+
+        private void TrySetAnimatorTrigger(
+            string triggerName)
+        {
+            if (petAnimator == null ||
+                string.IsNullOrWhiteSpace(triggerName))
             {
                 return;
             }
 
-            string levelUpMessage =
-                careResult.DidLevelUp
-                    ? $" • Level Up! Lv.{careResult.CurrentLevel}"
-                    : string.Empty;
+            AnimatorControllerParameter[] parameters =
+                petAnimator.parameters;
 
-            actionStatusText.text =
-                $"{careResult.ActionType} completed • " +
-                $"{careResult.PreviousNeedValue:0} → " +
-                $"{careResult.CurrentNeedValue:0} • " +
-                $"+{careResult.ExperienceEarned} XP" +
-                levelUpMessage;
+            for (int index = 0;
+                index < parameters.Length;
+                index++)
+            {
+                AnimatorControllerParameter parameter =
+                    parameters[index];
+
+                if (parameter.type ==
+                        AnimatorControllerParameterType.Trigger &&
+                    parameter.name == triggerName)
+                {
+                    petAnimator.SetTrigger(triggerName);
+                    return;
+                }
+            }
+        }
+
+        private void BeginActionCooldown()
+        {
+            if (cooldownCoroutine != null)
+            {
+                StopCoroutine(cooldownCoroutine);
+            }
+
+            cooldownCoroutine =
+                StartCoroutine(ActionCooldownRoutine());
+        }
+
+        private IEnumerator ActionCooldownRoutine()
+        {
+            isActionOnCooldown = true;
+            RefreshButtonStates();
+
+            if (actionCooldownSeconds > 0f)
+            {
+                yield return new WaitForSecondsRealtime(
+                    actionCooldownSeconds);
+            }
+
+            isActionOnCooldown = false;
+            cooldownCoroutine = null;
+            RefreshButtonStates();
+        }
+
+        private void RefreshButtonStates()
+        {
+            bool canUseStandardCare =
+                isBound &&
+                !isSleeping &&
+                !isActionOnCooldown;
+
+            SetButtonInteractable(
+                feedButton,
+                canUseStandardCare);
+
+            SetButtonInteractable(
+                playButton,
+                canUseStandardCare);
+
+            SetButtonInteractable(
+                batheButton,
+                canUseStandardCare);
+
+            SetButtonInteractable(
+                sleepButton,
+                isBound && !isActionOnCooldown);
         }
 
         private void Refresh(PetState petState)
@@ -219,36 +485,118 @@ namespace SuccuPet.Presentation.Pets
                 return;
             }
 
-            petNameText.text =
-                petState.Profile.DisplayName;
+            SetText(
+                petNameText,
+                petState.Profile.DisplayName);
 
-            levelText.text =
-                $"Level {petState.Stats.Level}";
+            SetText(
+                levelText,
+                $"Level {petState.Stats.Level}");
 
-            experienceText.text =
-                $"XP: {petState.Stats.CurrentExperience}";
+            SetText(
+                experienceText,
+                $"XP: {petState.Stats.CurrentExperience}");
 
-            affectionText.text =
-                $"Affection: {petState.Stats.Affection:0}";
+            SetText(
+                affectionText,
+                $"Affection: {petState.Stats.Affection:0}");
 
-            coinsText.text =
-                $"Coins: {petState.Stats.Coins}";
+            SetText(
+                coinsText,
+                $"Coins: {petState.Stats.Coins}");
 
-            fullnessView.Refresh(
-                petState.Needs.Fullness);
+            RefreshNeedView(
+                vitalityView,
+                "Vitality",
+                petState.Needs.Vitality);
 
-            energyView.Refresh(
-                petState.Needs.Energy);
+            RefreshNeedView(
+                restView,
+                "Rest",
+                petState.Needs.Rest);
 
-            happinessView.Refresh(
-                petState.Needs.Happiness);
+            RefreshNeedView(
+                moodView,
+                "Mood",
+                petState.Needs.Mood);
 
-            hygieneView.Refresh(
-                petState.Needs.Hygiene);
+            RefreshNeedView(
+                allureView,
+                "Allure",
+                petState.Needs.Allure);
+        }
+
+        private void RefreshNeedView(
+            NeedView view,
+            string label,
+            float value)
+        {
+            if (view == null)
+            {
+                return;
+            }
+
+            view.Refresh(
+                label,
+                value,
+                healthyColor,
+                warningColor,
+                criticalColor);
+        }
+
+        private void SetActionStatus(string message)
+        {
+            SetText(actionStatusText, message);
+        }
+
+        private static void AddButtonListener(
+            Button button,
+            UnityEngine.Events.UnityAction listener)
+        {
+            if (button != null)
+            {
+                button.onClick.AddListener(listener);
+            }
+        }
+
+        private static void RemoveButtonListener(
+            Button button,
+            UnityEngine.Events.UnityAction listener)
+        {
+            if (button != null)
+            {
+                button.onClick.RemoveListener(listener);
+            }
+        }
+
+        private static void SetButtonInteractable(
+            Button button,
+            bool isInteractable)
+        {
+            if (button != null)
+            {
+                button.interactable = isInteractable;
+            }
+        }
+
+        private static void SetText(
+            TMP_Text target,
+            string value)
+        {
+            if (target != null)
+            {
+                target.text = value;
+            }
         }
 
         private void OnDestroy()
         {
+            if (cooldownCoroutine != null)
+            {
+                StopCoroutine(cooldownCoroutine);
+                cooldownCoroutine = null;
+            }
+
             if (!isBound)
             {
                 return;
@@ -256,17 +604,21 @@ namespace SuccuPet.Presentation.Pets
 
             petSession.StateChanged -= Refresh;
 
-            feedButton.onClick.RemoveListener(
+            RemoveButtonListener(
+                feedButton,
                 HandleFeedClicked);
 
-            restButton.onClick.RemoveListener(
-                HandleRestClicked);
+            RemoveButtonListener(
+                sleepButton,
+                HandleSleepClicked);
 
-            playButton.onClick.RemoveListener(
+            RemoveButtonListener(
+                playButton,
                 HandlePlayClicked);
 
-            cleanButton.onClick.RemoveListener(
-                HandleCleanClicked);
+            RemoveButtonListener(
+                batheButton,
+                HandleBatheClicked);
 
             isBound = false;
         }

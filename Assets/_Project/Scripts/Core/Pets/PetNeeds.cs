@@ -7,10 +7,16 @@ namespace SuccuPet.Core.Pets
         public const float MinimumValue = 0f;
         public const float MaximumValue = 100f;
 
+        // Legacy property names are retained for save-file compatibility.
         public float Fullness { get; private set; }
         public float Energy { get; private set; }
         public float Happiness { get; private set; }
         public float Hygiene { get; private set; }
+
+        public float Vitality => Fullness;
+        public float Rest => Energy;
+        public float Mood => Happiness;
+        public float Allure => Hygiene;
 
         public PetNeeds(
             float fullness = MaximumValue,
@@ -28,17 +34,17 @@ namespace SuccuPet.Core.Pets
         {
             switch (needType)
             {
-                case PetNeedType.Fullness:
-                    return Fullness;
+                case PetNeedType.Vitality:
+                    return Vitality;
 
-                case PetNeedType.Energy:
-                    return Energy;
+                case PetNeedType.Rest:
+                    return Rest;
 
-                case PetNeedType.Happiness:
-                    return Happiness;
+                case PetNeedType.Mood:
+                    return Mood;
 
-                case PetNeedType.Hygiene:
-                    return Hygiene;
+                case PetNeedType.Allure:
+                    return Allure;
 
                 default:
                     throw new ArgumentOutOfRangeException(
@@ -66,19 +72,19 @@ namespace SuccuPet.Core.Pets
 
             switch (needType)
             {
-                case PetNeedType.Fullness:
+                case PetNeedType.Vitality:
                     Fullness = clampedValue;
                     break;
 
-                case PetNeedType.Energy:
+                case PetNeedType.Rest:
                     Energy = clampedValue;
                     break;
 
-                case PetNeedType.Happiness:
+                case PetNeedType.Mood:
                     Happiness = clampedValue;
                     break;
 
-                case PetNeedType.Hygiene:
+                case PetNeedType.Allure:
                     Hygiene = clampedValue;
                     break;
 

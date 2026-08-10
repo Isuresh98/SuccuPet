@@ -2,9 +2,15 @@ namespace SuccuPet.Core.Pets
 {
     public enum PetNeedType
     {
-        Fullness = 0,
-        Energy = 1,
-        Happiness = 2,
-        Hygiene = 3
+        Vitality = 0,
+        Rest = 1,
+        Mood = 2,
+        Allure = 3,
+
+        // Legacy aliases preserve compatibility with existing code and saves.
+        Fullness = Vitality,
+        Energy = Rest,
+        Happiness = Mood,
+        Hygiene = Allure
     }
 }
