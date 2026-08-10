@@ -4,10 +4,24 @@ namespace SuccuPet.Core.Pets
 {
     public sealed class PetDecayPolicy
     {
+        // Legacy property names are retained for existing decay-service code.
         public float FullnessLossPerHour { get; }
         public float EnergyLossPerHour { get; }
         public float HappinessLossPerHour { get; }
         public float HygieneLossPerHour { get; }
+
+        public float VitalityLossPerHour =>
+            FullnessLossPerHour;
+
+        public float RestLossPerHour =>
+            EnergyLossPerHour;
+
+        public float MoodLossPerHour =>
+            HappinessLossPerHour;
+
+        public float AllureLossPerHour =>
+            HygieneLossPerHour;
+
         public double MaximumOfflineHours { get; }
 
         public static PetDecayPolicy Default { get; } =
@@ -54,11 +68,14 @@ namespace SuccuPet.Core.Pets
             MaximumOfflineHours = maximumOfflineHours;
         }
 
-        private static void ValidateRate(float value, string parameterName)
+        private static void ValidateRate(
+            float value,
+            string parameterName)
         {
             if (value < 0f)
             {
-                throw new ArgumentOutOfRangeException(parameterName);
+                throw new ArgumentOutOfRangeException(
+                    parameterName);
             }
         }
     }

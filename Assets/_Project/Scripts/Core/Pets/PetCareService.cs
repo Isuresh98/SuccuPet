@@ -23,8 +23,7 @@ namespace SuccuPet.Core.Pets
             IsSuccessful &&
             CurrentLevel > PreviousLevel;
 
-        // පැරණි constructor එක භාවිත කරන code තිබුණත්
-        // compile වීම සඳහා මේ overload එක තබා තිබෙනවා.
+    
         public PetCareActionResult(
             PetCareActionType actionType,
             PetNeedType targetNeed,
@@ -110,7 +109,7 @@ namespace SuccuPet.Core.Pets
             float missingNeedValue =
                 MaximumNeedValue - previousNeedValue;
 
-            // Full හෝ almost full නම් action එක reject කරන්න.
+            // Full or almost full if action one reject.
             if (missingNeedValue <
                 MinimumMissingValueForCare)
             {

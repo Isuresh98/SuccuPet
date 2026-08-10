@@ -343,7 +343,7 @@ GameObject:
   - component: {fileID: 59449762}
   - component: {fileID: 59449761}
   m_Layer: 0
-  m_Name: RestButton
+  m_Name: SleepButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3358,7 +3358,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Rest
+  m_text: Sleep
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -3928,23 +3928,39 @@ MonoBehaviour:
   experienceText: {fileID: 1710209801}
   affectionText: {fileID: 1858184024}
   coinsText: {fileID: 1538573446}
-  fullnessView:
+  vitalityView:
+    labelText: {fileID: 535143327}
     slider: {fileID: 1045810215}
+    fillImage: {fileID: 2019318547}
     valueText: {fileID: 608930863}
-  energyView:
+  restView:
+    labelText: {fileID: 2082327431}
     slider: {fileID: 1214278929}
+    fillImage: {fileID: 1275315188}
     valueText: {fileID: 439237540}
-  happinessView:
+  moodView:
+    labelText: {fileID: 1653315677}
     slider: {fileID: 455702837}
+    fillImage: {fileID: 1521788274}
     valueText: {fileID: 1682554885}
-  hygieneView:
+  allureView:
+    labelText: {fileID: 120326311}
     slider: {fileID: 477073119}
+    fillImage: {fileID: 647462692}
     valueText: {fileID: 18648095}
+  healthyColor: {r: 0.2, g: 0.78, b: 0.35, a: 1}
+  warningColor: {r: 1, g: 0.76, b: 0.15, a: 1}
+  criticalColor: {r: 0.92, g: 0.22, b: 0.22, a: 1}
   feedButton: {fileID: 536530194}
-  restButton: {fileID: 59449761}
+  sleepButton: {fileID: 59449761}
   playButton: {fileID: 69660350}
-  cleanButton: {fileID: 1369663547}
+  batheButton: {fileID: 1369663547}
+  sleepButtonText: {fileID: 1227061796}
+  petAnimator: {fileID: 0}
+  sleepTriggerName: Sleep
+  wakeTriggerName: Wake
   actionStatusText: {fileID: 762218724}
+  actionCooldownSeconds: 1
 --- !u!1 &1477922414
 GameObject:
   m_ObjectHideFlags: 0
