@@ -52,6 +52,21 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                 comaRecoveryProgressHours =
                     petState.Health.ComaRecoveryProgressHours,
 
+                hasSelectedStarterEgg =
+                    petState.Origin.HasSelectedLineage,
+
+                lineageId = petState.Origin.LineageId,
+                acquisitionType =
+                    (int)petState.Origin.AcquisitionType,
+                colorSeed = petState.Origin.ColorSeed,
+                colorRarity =
+                    (int)petState.Origin.ColorRarity,
+
+                acquiredAtUtcTicks =
+                    petState.Origin.AcquiredAtUtc.HasValue
+                        ? petState.Origin.AcquiredAtUtc.Value.Ticks
+                        : 0L,
+
                 fullness = petState.Needs.Fullness,
                 energy = petState.Needs.Energy,
                 happiness = petState.Needs.Happiness,
@@ -93,6 +108,7 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
             PetHealth health;
             bool isInComa;
             DateTime? comaStartedUtc;
+            PetOrigin origin;
 
             if (saveData.schemaVersion == 1)
             {
@@ -106,6 +122,7 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                 health = new PetHealth();
                 isInComa = false;
                 comaStartedUtc = null;
+                origin = CreateLegacyOrigin(createdAtUtc);
             }
             else
             {
@@ -125,6 +142,7 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                     health = new PetHealth();
                     isInComa = false;
                     comaStartedUtc = null;
+                    origin = CreateLegacyOrigin(createdAtUtc);
                 }
                 else
                 {
@@ -143,6 +161,10 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                         : isInComa
                             ? lastSimulationUtc
                             : (DateTime?)null;
+
+                    origin = saveData.schemaVersion == 3
+                        ? CreateLegacyOrigin(createdAtUtc)
+                        : CreateSchemaFourOrigin(saveData);
                 }
             }
 
@@ -172,7 +194,55 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                 sleepStartedUtc,
                 health,
                 isInComa,
-                comaStartedUtc);
+                comaStartedUtc,
+                origin);
+        }
+
+        private static PetOrigin CreateLegacyOrigin(
+            DateTime createdAtUtc)
+        {
+            return new PetOrigin(
+                PetLineageCatalog.LegacyDefaultLineageId,
+                PetAcquisitionType.LegacyMigration,
+                0,
+                PetColorRarity.Common,
+                createdAtUtc);
+        }
+
+        private static PetOrigin CreateSchemaFourOrigin(
+            PetSaveData saveData)
+        {
+            if (!saveData.hasSelectedStarterEgg)
+            {
+                return PetOrigin.Unselected;
+            }
+
+            if (!Enum.IsDefined(
+                    typeof(PetAcquisitionType),
+                    saveData.acquisitionType))
+            {
+                throw new InvalidDataException(
+                    "Save acquisition type is invalid.");
+            }
+
+            if (!Enum.IsDefined(
+                    typeof(PetColorRarity),
+                    saveData.colorRarity))
+            {
+                throw new InvalidDataException(
+                    "Save color rarity is invalid.");
+            }
+
+            DateTime acquiredAtUtc = ParseUtcTicks(
+                saveData.acquiredAtUtcTicks,
+                nameof(saveData.acquiredAtUtcTicks));
+
+            return new PetOrigin(
+                saveData.lineageId,
+                (PetAcquisitionType)saveData.acquisitionType,
+                saveData.colorSeed,
+                (PetColorRarity)saveData.colorRarity,
+                acquiredAtUtc);
         }
 
         private static DateTime ParseUtcTicks(

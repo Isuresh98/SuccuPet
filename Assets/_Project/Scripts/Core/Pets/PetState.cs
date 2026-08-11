@@ -8,6 +8,7 @@ namespace SuccuPet.Core.Pets
         public PetNeeds Needs { get; }
         public PetStats Stats { get; }
         public PetHealth Health { get; }
+        public PetOrigin Origin { get; private set; }
         public DateTime LastSimulationUtc { get; private set; }
         public bool IsSleeping { get; private set; }
         public DateTime? SleepStartedUtc { get; private set; }
@@ -26,7 +27,8 @@ namespace SuccuPet.Core.Pets
             DateTime? sleepStartedUtc = null,
             PetHealth health = null,
             bool isInComa = false,
-            DateTime? comaStartedUtc = null)
+            DateTime? comaStartedUtc = null,
+            PetOrigin origin = null)
         {
             Profile = profile ??
                 throw new ArgumentNullException(nameof(profile));
@@ -38,6 +40,7 @@ namespace SuccuPet.Core.Pets
                 throw new ArgumentNullException(nameof(stats));
 
             Health = health ?? new PetHealth();
+            Origin = origin ?? PetOrigin.Unselected;
 
             if (lastSimulationUtc.Kind != DateTimeKind.Utc)
             {
@@ -90,14 +93,17 @@ namespace SuccuPet.Core.Pets
                 profile,
                 new PetNeeds(),
                 new PetStats(),
-                utcNow);
+                utcNow,
+                origin: PetOrigin.Unselected);
         }
 
         public bool StartSleeping(DateTime utcNow)
         {
             ValidateUtc(utcNow, nameof(utcNow));
 
-            if (IsSleeping || IsInComa)
+            if (IsSleeping ||
+                IsInComa ||
+                !Origin.HasSelectedLineage)
             {
                 return false;
             }
@@ -156,6 +162,34 @@ namespace SuccuPet.Core.Pets
             IsSleeping = false;
             SleepStartedUtc = null;
             return true;
+        }
+
+        internal void AssignOrigin(
+            PetOrigin origin,
+            DateTime utcNow)
+        {
+            if (origin == null)
+            {
+                throw new ArgumentNullException(nameof(origin));
+            }
+
+            ValidateUtc(utcNow, nameof(utcNow));
+
+            if (Origin.HasSelectedLineage)
+            {
+                throw new InvalidOperationException(
+                    "Pet origin has already been assigned.");
+            }
+
+            if (!origin.HasSelectedLineage)
+            {
+                throw new ArgumentException(
+                    "Assigned origin must contain a lineage.",
+                    nameof(origin));
+            }
+
+            Origin = origin;
+            LastSimulationUtc = utcNow;
         }
 
         internal void MarkSimulationUpdated(DateTime utcNow)

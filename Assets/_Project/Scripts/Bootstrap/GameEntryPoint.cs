@@ -104,10 +104,14 @@ namespace SuccuPet.Bootstrap
                     PetDecayPolicy.Default,
                     repository);
 
+            SelectStarterEggUseCase starterEggUseCase =
+                new SelectStarterEggUseCase(repository);
+
             petSession = new PetSession(
                 loadUseCase,
                 careUseCase,
-                updateUseCase);
+                updateUseCase,
+                starterEggUseCase);
         }
 
         private void InitializeGame()
@@ -142,7 +146,45 @@ namespace SuccuPet.Bootstrap
                 $"Level: {petState.Stats.Level} | " +
                 $"XP: {petState.Stats.CurrentExperience} | " +
                 $"Health: {petState.Health.Value} | " +
-                $"Coma: {petState.IsInComa}");
+                $"Coma: {petState.IsInComa} | " +
+                $"Lineage: " +
+                $"{(petState.Origin.HasSelectedLineage ? petState.Origin.LineageId : "Not selected")}");
+        }
+
+        public StarterEggSelectionResult SelectStarterEgg(
+            string lineageId)
+        {
+            if (!IsReady)
+            {
+                throw new InvalidOperationException(
+                    "Game is not ready.");
+            }
+
+            StarterEggSelectionResult result =
+                petSession.SelectStarterEgg(
+                    lineageId,
+                    DateTime.UtcNow);
+
+            if (environmentConfig.EnableDebugLogs)
+            {
+                if (result.IsSuccessful)
+                {
+                    Debug.Log(
+                        $"Starter egg selected | " +
+                        $"Lineage: {result.Lineage.Id} | " +
+                        $"Color rarity: {result.ColorRarity}",
+                        this);
+                }
+                else
+                {
+                    Debug.LogWarning(
+                        $"Starter egg rejected | " +
+                        $"Reason: {result.Message}",
+                        this);
+                }
+            }
+
+            return result;
         }
 
         public PerformPetCareActionResult PerformCareAction(

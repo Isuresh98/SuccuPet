@@ -256,13 +256,9 @@ namespace SuccuPet.Presentation.Pets
 
             isBound = true;
 
-            RefreshSleepingPresentation(
-                petSession.CurrentPetState.IsSleeping,
-                false);
-            Refresh(petSession.CurrentPetState);
-
-            RefreshConditionStatus(
-                petSession.CurrentPetState);
+// Refresh() in sleeping presentation and
+// condition status borth update.
+Refresh(petSession.CurrentPetState);
         }
 
         private void HandleFeedClicked()
@@ -275,6 +271,13 @@ namespace SuccuPet.Presentation.Pets
         {
             if (!isBound || isActionOnCooldown)
             {
+                return;
+            }
+
+            if (!petSession.CurrentPetState.Origin.HasSelectedLineage)
+            {
+                SetActionStatus(
+                    "Choose a starter egg first.");
                 return;
             }
 
@@ -320,6 +323,7 @@ namespace SuccuPet.Presentation.Pets
             PetCareActionType actionType)
         {
             if (!isBound ||
+                !petSession.CurrentPetState.Origin.HasSelectedLineage ||
                 petSession.CurrentPetState.IsSleeping ||
                 isActionOnCooldown)
             {
@@ -454,6 +458,7 @@ namespace SuccuPet.Presentation.Pets
 
             bool canUseStandardCare =
                 isBound &&
+                petSession.CurrentPetState.Origin.HasSelectedLineage &&
                 !petSession.CurrentPetState.IsSleeping &&
                 !isActionOnCooldown;
 
@@ -472,6 +477,7 @@ namespace SuccuPet.Presentation.Pets
             SetButtonInteractable(
                 sleepButton,
                 isBound &&
+                petSession.CurrentPetState.Origin.HasSelectedLineage &&
                 !isInComa &&
                 !isActionOnCooldown);
         }
@@ -530,43 +536,50 @@ namespace SuccuPet.Presentation.Pets
             RefreshConditionStatus(petState);
         }
 
-        private void RefreshConditionStatus(PetState petState)
-        {
-            if (petState.IsInComa)
-            {
-                bool recoveryCareReady =
-                    petState.Needs.Vitality > 50f &&
-                    petState.Needs.Rest > 50f &&
-                    petState.Needs.Mood > 50f &&
-                    petState.Needs.Allure > 50f;
+       private void RefreshConditionStatus(PetState petState)
+{
+    if (petState == null ||
+        !petState.Origin.HasSelectedLineage)
+    {
+        ClearActionStatus();
+        return;
+    }
 
-                SetActionStatus(
-                    recoveryCareReady
-                        ? "Recovery care is working. Keep every need above halfway."
-                        : "Your pet is in a care coma. Restore every need above halfway.");
-                return;
-            }
+    if (petState.IsInComa)
+    {
+        bool recoveryCareReady =
+            petState.Needs.Vitality > 50f &&
+            petState.Needs.Rest > 50f &&
+            petState.Needs.Mood > 50f &&
+            petState.Needs.Allure > 50f;
 
-            switch (petState.Health.Status)
-            {
-                case PetHealthStatus.Critical:
-                    SetActionStatus(
-                        "Your pet is barely responding. Give consistent care now.");
-                    break;
+        SetActionStatus(
+            recoveryCareReady
+                ? "Recovery care is working. Keep every need above halfway."
+                : "Your pet is in a care coma. Restore every need above halfway.");
 
-                case PetHealthStatus.Fatigued:
-                    SetActionStatus(
-                        "Your pet looks fatigued and needs steadier care.");
-                    break;
+        return;
+    }
 
-                default:
-                    SetActionStatus(
-                        petState.IsSleeping
-                            ? "Your pet is sleeping."
-                            : "Your pet feels well cared for.");
-                    break;
-            }
-        }
+    switch (petState.Health.Status)
+    {
+        case PetHealthStatus.Critical:
+            SetActionStatus(
+                "Your pet is barely responding. Give consistent care now.");
+            break;
+
+        case PetHealthStatus.Fatigued:
+            SetActionStatus(
+                "Your pet looks fatigued and needs steadier care.");
+            break;
+
+        default:
+            // Healthy pet ones screen open 
+            // unnecessary status ones not show.
+            ClearActionStatus();
+            break;
+    }
+}
 
         private void RefreshNeedView(
             NeedView view,
@@ -587,9 +600,26 @@ namespace SuccuPet.Presentation.Pets
         }
 
         private void SetActionStatus(string message)
-        {
-            SetText(actionStatusText, message);
-        }
+{
+    if (actionStatusText == null)
+    {
+        return;
+    }
+
+    bool hasMessage =
+        !string.IsNullOrWhiteSpace(message);
+
+    actionStatusText.text =
+        hasMessage ? message : string.Empty;
+
+    actionStatusText.gameObject.SetActive(
+        hasMessage);
+}
+
+private void ClearActionStatus()
+{
+    SetActionStatus(string.Empty);
+}
 
         private static void AddButtonListener(
             Button button,

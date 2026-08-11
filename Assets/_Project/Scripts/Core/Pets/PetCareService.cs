@@ -106,6 +106,16 @@ namespace SuccuPet.Core.Pets
             int previousLevel =
                 petState.Stats.Level;
 
+            if (!petState.Origin.HasSelectedLineage)
+            {
+                return CreateRejectedResult(
+                    actionType,
+                    definition.TargetNeed,
+                    previousNeedValue,
+                    previousLevel,
+                    "Choose a starter egg before caring for your pet.");
+            }
+
             if (actionType == PetCareActionType.Sleep)
             {
                 return CreateRejectedResult(
