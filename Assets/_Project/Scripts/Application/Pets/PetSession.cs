@@ -8,6 +8,7 @@ namespace SuccuPet.Application.Pets
         private readonly LoadOrCreatePetStateUseCase loadUseCase;
         private readonly PerformPetCareActionUseCase careUseCase;
         private readonly UpdatePetStateUseCase updateUseCase;
+        private readonly SelectStarterEggUseCase starterEggUseCase;
 
         public PetState CurrentPetState { get; private set; }
 
@@ -21,7 +22,8 @@ namespace SuccuPet.Application.Pets
         public PetSession(
             LoadOrCreatePetStateUseCase loadUseCase,
             PerformPetCareActionUseCase careUseCase,
-            UpdatePetStateUseCase updateUseCase)
+            UpdatePetStateUseCase updateUseCase,
+            SelectStarterEggUseCase starterEggUseCase)
         {
             this.loadUseCase = loadUseCase ??
                 throw new ArgumentNullException(
@@ -34,6 +36,10 @@ namespace SuccuPet.Application.Pets
             this.updateUseCase = updateUseCase ??
                 throw new ArgumentNullException(
                     nameof(updateUseCase));
+
+            this.starterEggUseCase = starterEggUseCase ??
+                throw new ArgumentNullException(
+                    nameof(starterEggUseCase));
         }
 
         public LoadPetStateResult Initialize(
@@ -91,6 +97,26 @@ namespace SuccuPet.Application.Pets
                     utcNow);
 
             StateChanged?.Invoke(CurrentPetState);
+            return result;
+        }
+
+        public StarterEggSelectionResult SelectStarterEgg(
+            string lineageId,
+            DateTime utcNow)
+        {
+            EnsureInitialized();
+
+            StarterEggSelectionResult result =
+                starterEggUseCase.Execute(
+                    CurrentPetState,
+                    lineageId,
+                    utcNow);
+
+            if (result.IsSuccessful)
+            {
+                StateChanged?.Invoke(CurrentPetState);
+            }
+
             return result;
         }
 

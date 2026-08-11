@@ -82,6 +82,14 @@ namespace SuccuPet.Core.Pets
                 decayPolicy,
                 healthPolicy);
 
+            // The pet lifecycle begins only after onboarding selects an egg.
+            // Consume elapsed time so onboarding can never create neglect.
+            if (!petState.Origin.HasSelectedLineage)
+            {
+                petState.MarkSimulationUpdated(utcNow);
+                return CreateNoChangeResult(petState);
+            }
+
             DateTime simulationStartUtc =
                 petState.LastSimulationUtc;
 
