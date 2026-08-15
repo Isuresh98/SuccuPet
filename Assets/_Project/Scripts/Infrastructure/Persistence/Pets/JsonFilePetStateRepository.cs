@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using SuccuPet.Application.Pets;
 using SuccuPet.Core.Pets;
+using SuccuPet.Infrastructure.Persistence;
 using UnityEngine;
 
 namespace SuccuPet.Infrastructure.Persistence.Pets
@@ -85,6 +86,8 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                 }
 
                 File.Move(temporaryPath, filePath);
+
+                WebGLFileSystemSync.FlushPendingWrites();
             }
             finally
             {
