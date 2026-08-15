@@ -10,14 +10,22 @@ namespace SuccuPet.Core.Pets
         public PetHealth Health { get; }
         public PetOrigin Origin { get; private set; }
         public PetGrowthState Growth { get; }
+
         public DateTime LastSimulationUtc { get; private set; }
+
         public bool IsSleeping { get; private set; }
         public DateTime? SleepStartedUtc { get; private set; }
+
         public bool IsInComa { get; private set; }
         public DateTime? ComaStartedUtc { get; private set; }
 
-        // Retained so older callers can move to LastSimulationUtc gradually.
-        public DateTime LastNeedsUpdateUtc => LastSimulationUtc;
+        public bool IsDead { get; private set; }
+        public DateTime? DiedAtUtc { get; private set; }
+
+        public bool IsAlive => !IsDead;
+
+        public DateTime LastNeedsUpdateUtc =>
+            LastSimulationUtc;
 
         public PetState(
             PetProfile profile,
@@ -30,7 +38,9 @@ namespace SuccuPet.Core.Pets
             bool isInComa = false,
             DateTime? comaStartedUtc = null,
             PetOrigin origin = null,
-            PetGrowthState growth = null)
+            PetGrowthState growth = null,
+            bool isDead = false,
+            DateTime? diedAtUtc = null)
         {
             Profile = profile ??
                 throw new ArgumentNullException(nameof(profile));
@@ -43,41 +53,50 @@ namespace SuccuPet.Core.Pets
 
             Health = health ?? new PetHealth();
             Origin = origin ?? PetOrigin.Unselected;
+
             Growth = growth ?? PetGrowthState.CreateNew(
                 profile.CreatedAtUtc);
 
-            if (lastSimulationUtc.Kind != DateTimeKind.Utc)
-            {
-                throw new ArgumentException(
-                    "Simulation time must use UTC.",
-                    nameof(lastSimulationUtc));
-            }
+            ValidateUtc(
+                lastSimulationUtc,
+                nameof(lastSimulationUtc));
 
-            if (sleepStartedUtc.HasValue &&
-                sleepStartedUtc.Value.Kind != DateTimeKind.Utc)
-            {
-                throw new ArgumentException(
-                    "Sleep start time must use UTC.",
-                    nameof(sleepStartedUtc));
-            }
+            ValidateOptionalUtc(
+                sleepStartedUtc,
+                nameof(sleepStartedUtc));
 
-            if (comaStartedUtc.HasValue &&
-                comaStartedUtc.Value.Kind != DateTimeKind.Utc)
-            {
-                throw new ArgumentException(
-                    "Coma start time must use UTC.",
-                    nameof(comaStartedUtc));
-            }
+            ValidateOptionalUtc(
+                comaStartedUtc,
+                nameof(comaStartedUtc));
+
+            ValidateOptionalUtc(
+                diedAtUtc,
+                nameof(diedAtUtc));
 
             LastSimulationUtc = lastSimulationUtc;
-            IsInComa = isInComa ||
-                Health.Value <= PetHealth.MinimumValue;
+
+            IsDead = isDead;
+
+            DiedAtUtc = IsDead
+                ? diedAtUtc ??
+                    comaStartedUtc ??
+                    lastSimulationUtc
+                : null;
+
+            IsInComa =
+                !IsDead &&
+                (isInComa ||
+                    Health.Value <= PetHealth.MinimumValue);
 
             ComaStartedUtc = IsInComa
                 ? comaStartedUtc ?? lastSimulationUtc
                 : null;
 
-            IsSleeping = isSleeping && !IsInComa;
+            IsSleeping =
+                isSleeping &&
+                !IsInComa &&
+                !IsDead;
+
             SleepStartedUtc = IsSleeping
                 ? sleepStartedUtc ?? lastSimulationUtc
                 : null;
@@ -106,7 +125,8 @@ namespace SuccuPet.Core.Pets
         {
             ValidateUtc(utcNow, nameof(utcNow));
 
-            if (IsSleeping ||
+            if (IsDead ||
+                IsSleeping ||
                 IsInComa ||
                 !Origin.HasSelectedLineage ||
                 Growth.Stage == PetGrowthStage.Egg)
@@ -123,7 +143,7 @@ namespace SuccuPet.Core.Pets
         {
             ValidateUtc(utcNow, nameof(utcNow));
 
-            if (!IsSleeping)
+            if (IsDead || !IsSleeping)
             {
                 return false;
             }
@@ -137,17 +157,20 @@ namespace SuccuPet.Core.Pets
         {
             ValidateUtc(utcNow, nameof(utcNow));
 
-            if (IsInComa)
+            if (IsDead || IsInComa)
             {
                 return false;
             }
 
             IsInComa = true;
             ComaStartedUtc = utcNow;
+
             IsSleeping = false;
             SleepStartedUtc = null;
+
             Health.SetEvaluationProgressMinutes(0d);
             Health.SetComaRecoveryProgressHours(0d);
+
             return true;
         }
 
@@ -157,16 +180,43 @@ namespace SuccuPet.Core.Pets
         {
             ValidateUtc(utcNow, nameof(utcNow));
 
-            if (!IsInComa)
+            if (IsDead || !IsInComa)
             {
                 return false;
             }
 
             Health.RestoreAfterComa(restoredHealth);
+
             IsInComa = false;
             ComaStartedUtc = null;
+
             IsSleeping = false;
             SleepStartedUtc = null;
+
+            return true;
+        }
+
+        internal bool Die(DateTime utcNow)
+        {
+            ValidateUtc(utcNow, nameof(utcNow));
+
+            if (IsDead || !IsInComa)
+            {
+                return false;
+            }
+
+            IsDead = true;
+            DiedAtUtc = utcNow;
+
+            IsInComa = false;
+            ComaStartedUtc = null;
+
+            IsSleeping = false;
+            SleepStartedUtc = null;
+
+            Health.SetEvaluationProgressMinutes(0d);
+            Health.SetComaRecoveryProgressHours(0d);
+
             return true;
         }
 
@@ -180,6 +230,12 @@ namespace SuccuPet.Core.Pets
             }
 
             ValidateUtc(utcNow, nameof(utcNow));
+
+            if (IsDead)
+            {
+                throw new InvalidOperationException(
+                    "A dead pet cannot receive an origin.");
+            }
 
             if (Origin.HasSelectedLineage)
             {
@@ -207,6 +263,16 @@ namespace SuccuPet.Core.Pets
         internal void MarkNeedsUpdated(DateTime utcNow)
         {
             MarkSimulationUpdated(utcNow);
+        }
+
+        private static void ValidateOptionalUtc(
+            DateTime? value,
+            string parameterName)
+        {
+            if (value.HasValue)
+            {
+                ValidateUtc(value.Value, parameterName);
+            }
         }
 
         private static void ValidateUtc(

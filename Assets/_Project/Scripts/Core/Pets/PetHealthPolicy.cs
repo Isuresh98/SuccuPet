@@ -11,6 +11,7 @@ namespace SuccuPet.Core.Pets
         public int NeglectHealthLoss { get; }
         public float ComaRecoveryNeedThreshold { get; }
         public double ComaRecoveryWindowHours { get; }
+        public double ComaDeathWindowHours { get; }
         public int RecoveredHealthValue { get; }
 
         public static PetHealthPolicy Default { get; } =
@@ -22,7 +23,8 @@ namespace SuccuPet.Core.Pets
                 neglectHealthLoss: 1,
                 comaRecoveryNeedThreshold: 50f,
                 comaRecoveryWindowHours: 24d,
-                recoveredHealthValue: 30);
+                recoveredHealthValue: 30,
+                comaDeathWindowHours: 48d);
 
         public PetHealthPolicy(
             double evaluationIntervalMinutes,
@@ -32,7 +34,8 @@ namespace SuccuPet.Core.Pets
             int neglectHealthLoss,
             float comaRecoveryNeedThreshold,
             double comaRecoveryWindowHours,
-            int recoveredHealthValue)
+            int recoveredHealthValue,
+            double comaDeathWindowHours = 48d)
         {
             if (evaluationIntervalMinutes <= 0d)
             {
@@ -40,22 +43,28 @@ namespace SuccuPet.Core.Pets
                     nameof(evaluationIntervalMinutes));
             }
 
-            if (neglectedAverageThreshold < PetNeeds.MinimumValue ||
-                healthyAverageThreshold > PetNeeds.MaximumValue ||
-                neglectedAverageThreshold >= healthyAverageThreshold)
+            if (neglectedAverageThreshold <
+                    PetNeeds.MinimumValue ||
+                healthyAverageThreshold >
+                    PetNeeds.MaximumValue ||
+                neglectedAverageThreshold >=
+                    healthyAverageThreshold)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(healthyAverageThreshold));
             }
 
-            if (healthyHealthGain < 0 || neglectHealthLoss < 0)
+            if (healthyHealthGain < 0 ||
+                neglectHealthLoss < 0)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(healthyHealthGain));
             }
 
-            if (comaRecoveryNeedThreshold < PetNeeds.MinimumValue ||
-                comaRecoveryNeedThreshold >= PetNeeds.MaximumValue)
+            if (comaRecoveryNeedThreshold <
+                    PetNeeds.MinimumValue ||
+                comaRecoveryNeedThreshold >=
+                    PetNeeds.MaximumValue)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(comaRecoveryNeedThreshold));
@@ -67,21 +76,46 @@ namespace SuccuPet.Core.Pets
                     nameof(comaRecoveryWindowHours));
             }
 
-            if (recoveredHealthValue <= PetHealth.MinimumValue ||
-                recoveredHealthValue > PetHealth.MaximumValue)
+            if (comaDeathWindowHours <=
+                comaRecoveryWindowHours)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(comaDeathWindowHours),
+                    "The coma death window must be longer than the recovery window.");
+            }
+
+            if (recoveredHealthValue <=
+                    PetHealth.MinimumValue ||
+                recoveredHealthValue >
+                    PetHealth.MaximumValue)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(recoveredHealthValue));
             }
 
-            EvaluationIntervalMinutes = evaluationIntervalMinutes;
-            HealthyAverageThreshold = healthyAverageThreshold;
-            NeglectedAverageThreshold = neglectedAverageThreshold;
+            EvaluationIntervalMinutes =
+                evaluationIntervalMinutes;
+
+            HealthyAverageThreshold =
+                healthyAverageThreshold;
+
+            NeglectedAverageThreshold =
+                neglectedAverageThreshold;
+
             HealthyHealthGain = healthyHealthGain;
             NeglectHealthLoss = neglectHealthLoss;
-            ComaRecoveryNeedThreshold = comaRecoveryNeedThreshold;
-            ComaRecoveryWindowHours = comaRecoveryWindowHours;
-            RecoveredHealthValue = recoveredHealthValue;
+
+            ComaRecoveryNeedThreshold =
+                comaRecoveryNeedThreshold;
+
+            ComaRecoveryWindowHours =
+                comaRecoveryWindowHours;
+
+            ComaDeathWindowHours =
+                comaDeathWindowHours;
+
+            RecoveredHealthValue =
+                recoveredHealthValue;
         }
     }
 }

@@ -18,6 +18,7 @@ namespace SuccuPet.Application.Pets
         public bool IsInitialized => CurrentPetState != null;
 
         public event Action<PetState> StateChanged;
+        
 
         public event Action<PerformPetCareActionResult>
             CareActionPerformed;
@@ -27,6 +28,9 @@ namespace SuccuPet.Application.Pets
 
         public event Action<PetTrainingResult>
             TrainingPerformed;
+
+            public event Action<PetState> PetDied;
+
 
         public PetSession(
             LoadOrCreatePetStateUseCase loadUseCase,
@@ -201,19 +205,25 @@ namespace SuccuPet.Application.Pets
             return result;
         }
 
-        public PetDecayResult SimulateAndSave(
-            DateTime utcNow)
-        {
-            EnsureInitialized();
+       public PetDecayResult SimulateAndSave(
+    DateTime utcNow)
+{
+    EnsureInitialized();
 
-            PetDecayResult result =
-                updateUseCase.SimulateAndSave(
-                    CurrentPetState,
-                    utcNow);
+    PetDecayResult result =
+        updateUseCase.SimulateAndSave(
+            CurrentPetState,
+            utcNow);
 
-            StateChanged?.Invoke(CurrentPetState);
-            return result;
-        }
+    StateChanged?.Invoke(CurrentPetState);
+
+    if (result.Died)
+    {
+        PetDied?.Invoke(CurrentPetState);
+    }
+
+    return result;
+}
 
         private void EnsureInitialized()
         {

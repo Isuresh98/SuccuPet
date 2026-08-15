@@ -12,6 +12,7 @@ namespace SuccuPet.Core.Pets
         public int HealthEvaluations { get; }
         public bool EnteredComa { get; }
         public bool RecoveredFromComa { get; }
+        public bool Died { get; }
 
         public bool HealthChanged =>
             PreviousHealth != CurrentHealth;
@@ -28,6 +29,7 @@ namespace SuccuPet.Core.Pets
                 PetHealth.MaximumValue,
                 0,
                 false,
+                false,
                 false)
         {
         }
@@ -40,7 +42,8 @@ namespace SuccuPet.Core.Pets
             int currentHealth,
             int healthEvaluations,
             bool enteredComa,
-            bool recoveredFromComa)
+            bool recoveredFromComa,
+            bool died = false)
         {
             Applied = applied;
             AppliedHours = appliedHours;
@@ -50,6 +53,7 @@ namespace SuccuPet.Core.Pets
             HealthEvaluations = healthEvaluations;
             EnteredComa = enteredComa;
             RecoveredFromComa = recoveredFromComa;
+            Died = died;
         }
     }
 
@@ -82,8 +86,12 @@ namespace SuccuPet.Core.Pets
                 decayPolicy,
                 healthPolicy);
 
-            // The pet lifecycle begins only after onboarding selects an egg.
-            // Consume elapsed time so onboarding can never create neglect.
+            if (petState.IsDead)
+            {
+                petState.MarkSimulationUpdated(utcNow);
+                return CreateNoChangeResult(petState);
+            }
+
             if (!petState.Origin.HasSelectedLineage ||
                 petState.Growth.Stage == PetGrowthStage.Egg)
             {
@@ -94,7 +102,8 @@ namespace SuccuPet.Core.Pets
             DateTime simulationStartUtc =
                 petState.LastSimulationUtc;
 
-            TimeSpan elapsed = utcNow - simulationStartUtc;
+            TimeSpan elapsed =
+                utcNow - simulationStartUtc;
 
             if (elapsed <= TimeSpan.Zero)
             {
@@ -102,26 +111,48 @@ namespace SuccuPet.Core.Pets
             }
 
             double actualHours = elapsed.TotalHours;
+
             double appliedHours = Math.Min(
                 actualHours,
                 decayPolicy.MaximumOfflineHours);
 
-            int previousHealth = petState.Health.Value;
+            int previousHealth =
+                petState.Health.Value;
+
             int healthEvaluations = 0;
             bool enteredComa = false;
             bool recoveredFromComa = false;
+            bool died = false;
             double processedHours = 0d;
 
-            NormalizeHealthProgress(petState, healthPolicy);
+            NormalizeHealthProgress(
+                petState,
+                healthPolicy);
 
-            while (processedHours + Epsilon < appliedHours)
+            while (processedHours + Epsilon <
+                appliedHours)
             {
+                DateTime stepStartUtc =
+                    simulationStartUtc.AddHours(
+                        processedHours);
+
+                if (petState.IsInComa &&
+                    HasReachedComaDeathDeadline(
+                        petState,
+                        healthPolicy,
+                        stepStartUtc))
+                {
+                    died |= petState.Die(stepStartUtc);
+                    break;
+                }
+
                 double remainingHours =
                     appliedHours - processedHours;
 
                 double stepHours = GetNextStepHours(
                     petState,
                     healthPolicy,
+                    stepStartUtc,
                     remainingHours);
 
                 double effectiveDecayHours =
@@ -135,53 +166,71 @@ namespace SuccuPet.Core.Pets
                     decayPolicy,
                     effectiveDecayHours);
 
-                DateTime stepEndUtc = simulationStartUtc.AddHours(
-                    processedHours + stepHours);
+                DateTime stepEndUtc =
+                    stepStartUtc.AddHours(stepHours);
 
                 if (petState.IsInComa)
                 {
-                    bool recovered = ApplyComaRecoveryProgress(
-                        petState,
-                        healthPolicy,
-                        stepHours,
-                        stepEndUtc);
+                    if (HasReachedComaDeathDeadline(
+                            petState,
+                            healthPolicy,
+                            stepEndUtc))
+                    {
+                        died |= petState.Die(stepEndUtc);
+                    }
+                    else
+                    {
+                        bool recovered =
+                            ApplyComaRecoveryProgress(
+                                petState,
+                                healthPolicy,
+                                stepHours,
+                                stepEndUtc);
 
-                    recoveredFromComa |= recovered;
+                        recoveredFromComa |= recovered;
+                    }
                 }
                 else
                 {
-                    bool entered = ApplyHealthEvaluationProgress(
-                        petState,
-                        healthPolicy,
-                        stepHours,
-                        stepEndUtc,
-                        ref healthEvaluations);
+                    bool entered =
+                        ApplyHealthEvaluationProgress(
+                            petState,
+                            healthPolicy,
+                            stepHours,
+                            stepEndUtc,
+                            ref healthEvaluations);
 
                     enteredComa |= entered;
                 }
 
                 processedHours += stepHours;
+
+                if (petState.IsDead)
+                {
+                    break;
+                }
             }
 
-            // Consume the complete elapsed window even when progression was
-            // capped, preventing the same offline time from running twice.
             petState.MarkSimulationUpdated(utcNow);
 
             return new PetDecayResult(
                 applied: true,
                 appliedHours: appliedHours,
                 wasCapped:
-                    actualHours > decayPolicy.MaximumOfflineHours,
+                    actualHours >
+                    decayPolicy.MaximumOfflineHours,
                 previousHealth: previousHealth,
                 currentHealth: petState.Health.Value,
                 healthEvaluations: healthEvaluations,
                 enteredComa: enteredComa,
-                recoveredFromComa: recoveredFromComa);
+                recoveredFromComa: recoveredFromComa,
+                died: died);
         }
 
         private static double GetNextStepHours(
             PetState petState,
             PetHealthPolicy healthPolicy,
+            DateTime stepStartUtc,
             double remainingHours)
         {
             double stepHours = Math.Min(
@@ -190,22 +239,79 @@ namespace SuccuPet.Core.Pets
 
             if (petState.IsInComa)
             {
-                double recoveryHoursRemaining = Math.Max(
-                    Epsilon,
-                    healthPolicy.ComaRecoveryWindowHours -
-                    petState.Health.ComaRecoveryProgressHours);
+                double recoveryHoursRemaining =
+                    Math.Max(
+                        Epsilon,
+                        healthPolicy.ComaRecoveryWindowHours -
+                        petState.Health
+                            .ComaRecoveryProgressHours);
 
-                return Math.Min(stepHours, recoveryHoursRemaining);
+                double deathHoursRemaining =
+                    GetComaDeathHoursRemaining(
+                        petState,
+                        healthPolicy,
+                        stepStartUtc);
+
+                stepHours = Math.Min(
+                    stepHours,
+                    recoveryHoursRemaining);
+
+                stepHours = Math.Min(
+                    stepHours,
+                    Math.Max(
+                        Epsilon,
+                        deathHoursRemaining));
+
+                return stepHours;
             }
 
-            double evaluationMinutesRemaining = Math.Max(
-                Epsilon,
-                healthPolicy.EvaluationIntervalMinutes -
-                petState.Health.EvaluationProgressMinutes);
+            double evaluationMinutesRemaining =
+                Math.Max(
+                    Epsilon,
+                    healthPolicy.EvaluationIntervalMinutes -
+                    petState.Health
+                        .EvaluationProgressMinutes);
 
             return Math.Min(
                 stepHours,
                 evaluationMinutesRemaining / 60d);
+        }
+
+        private static double GetComaDeathHoursRemaining(
+            PetState petState,
+            PetHealthPolicy healthPolicy,
+            DateTime currentUtc)
+        {
+            if (!petState.ComaStartedUtc.HasValue)
+            {
+                return healthPolicy.ComaDeathWindowHours;
+            }
+
+            DateTime deathDeadlineUtc =
+                petState.ComaStartedUtc.Value.AddHours(
+                    healthPolicy.ComaDeathWindowHours);
+
+            return (
+                deathDeadlineUtc -
+                currentUtc).TotalHours;
+        }
+
+        private static bool HasReachedComaDeathDeadline(
+            PetState petState,
+            PetHealthPolicy healthPolicy,
+            DateTime currentUtc)
+        {
+            if (!petState.IsInComa ||
+                !petState.ComaStartedUtc.HasValue)
+            {
+                return false;
+            }
+
+            DateTime deathDeadlineUtc =
+                petState.ComaStartedUtc.Value.AddHours(
+                    healthPolicy.ComaDeathWindowHours);
+
+            return currentUtc >= deathDeadlineUtc;
         }
 
         private static double CalculateEffectiveDecayHours(
@@ -213,18 +319,22 @@ namespace SuccuPet.Core.Pets
             double processedActualHours,
             double stepActualHours)
         {
-            double fullSpeedHoursRemaining = Math.Max(
-                0d,
-                policy.FullSpeedOfflineHours -
-                processedActualHours);
+            double fullSpeedHoursRemaining =
+                Math.Max(
+                    0d,
+                    policy.FullSpeedOfflineHours -
+                    processedActualHours);
 
-            double fullSpeedHours = Math.Min(
-                stepActualHours,
-                fullSpeedHoursRemaining);
+            double fullSpeedHours =
+                Math.Min(
+                    stepActualHours,
+                    fullSpeedHoursRemaining);
 
-            double extendedHours = Math.Max(
-                0d,
-                stepActualHours - fullSpeedHours);
+            double extendedHours =
+                Math.Max(
+                    0d,
+                    stepActualHours -
+                    fullSpeedHours);
 
             return fullSpeedHours +
                 (extendedHours *
@@ -236,12 +346,19 @@ namespace SuccuPet.Core.Pets
             PetDecayPolicy policy,
             double effectiveHours)
         {
-            if (petState.IsSleeping || petState.IsInComa)
+            if (petState.IsDead)
+            {
+                return;
+            }
+
+            if (petState.IsSleeping ||
+                petState.IsInComa)
             {
                 ApplySleepingProgress(
                     petState,
                     policy,
                     effectiveHours);
+
                 return;
             }
 
@@ -267,25 +384,31 @@ namespace SuccuPet.Core.Pets
             {
                 petState.Health.SetEvaluationProgressMinutes(
                     progressMinutes);
+
                 return false;
             }
 
             petState.Health.SetEvaluationProgressMinutes(0d);
             healthEvaluations++;
 
-            float averageNeeds = GetAverageNeeds(petState.Needs);
+            float averageNeeds =
+                GetAverageNeeds(petState.Needs);
 
-            if (averageNeeds > policy.HealthyAverageThreshold)
+            if (averageNeeds >
+                policy.HealthyAverageThreshold)
             {
-                petState.Health.Increase(policy.HealthyHealthGain);
+                petState.Health.Increase(
+                    policy.HealthyHealthGain);
             }
             else if (averageNeeds <
                 policy.NeglectedAverageThreshold)
             {
-                petState.Health.Reduce(policy.NeglectHealthLoss);
+                petState.Health.Reduce(
+                    policy.NeglectHealthLoss);
             }
 
-            if (petState.Health.Value > PetHealth.MinimumValue)
+            if (petState.Health.Value >
+                PetHealth.MinimumValue)
             {
                 return false;
             }
@@ -299,11 +422,18 @@ namespace SuccuPet.Core.Pets
             double stepHours,
             DateTime stepEndUtc)
         {
+            if (petState.IsDead)
+            {
+                return false;
+            }
+
             if (!AreAllNeedsAbove(
                     petState.Needs,
                     policy.ComaRecoveryNeedThreshold))
             {
-                petState.Health.SetComaRecoveryProgressHours(0d);
+                petState.Health
+                    .SetComaRecoveryProgressHours(0d);
+
                 return false;
             }
 
@@ -329,23 +459,41 @@ namespace SuccuPet.Core.Pets
             PetState petState,
             PetHealthPolicy policy)
         {
+            if (petState.IsDead)
+            {
+                petState.Health
+                    .SetEvaluationProgressMinutes(0d);
+
+                petState.Health
+                    .SetComaRecoveryProgressHours(0d);
+
+                return;
+            }
+
             if (petState.IsInComa)
             {
-                petState.Health.SetEvaluationProgressMinutes(0d);
+                petState.Health
+                    .SetEvaluationProgressMinutes(0d);
+
                 return;
             }
 
             double progress =
-                petState.Health.EvaluationProgressMinutes;
+                petState.Health
+                    .EvaluationProgressMinutes;
 
-            if (progress >= policy.EvaluationIntervalMinutes)
+            if (progress >=
+                policy.EvaluationIntervalMinutes)
             {
-                petState.Health.SetEvaluationProgressMinutes(
-                    progress % policy.EvaluationIntervalMinutes);
+                petState.Health
+                    .SetEvaluationProgressMinutes(
+                        progress %
+                        policy.EvaluationIntervalMinutes);
             }
         }
 
-        private static float GetAverageNeeds(PetNeeds needs)
+        private static float GetAverageNeeds(
+            PetNeeds needs)
         {
             return (
                 needs.Vitality +
@@ -375,7 +523,8 @@ namespace SuccuPet.Core.Pets
                 currentHealth: petState.Health.Value,
                 healthEvaluations: 0,
                 enteredComa: false,
-                recoveredFromComa: false);
+                recoveredFromComa: false,
+                died: false);
         }
 
         private static void ApplyAwakeProgress(
@@ -385,22 +534,26 @@ namespace SuccuPet.Core.Pets
         {
             petState.Needs.Reduce(
                 PetNeedType.Vitality,
-                (float)(policy.VitalityLossPerHour *
+                (float)(
+                    policy.VitalityLossPerHour *
                     effectiveHours));
 
             petState.Needs.Reduce(
                 PetNeedType.Rest,
-                (float)(policy.RestLossPerHour *
+                (float)(
+                    policy.RestLossPerHour *
                     effectiveHours));
 
             petState.Needs.Reduce(
                 PetNeedType.Mood,
-                (float)(policy.MoodLossPerHour *
+                (float)(
+                    policy.MoodLossPerHour *
                     effectiveHours));
 
             petState.Needs.Reduce(
                 PetNeedType.Allure,
-                (float)(policy.AllureLossPerHour *
+                (float)(
+                    policy.AllureLossPerHour *
                     effectiveHours));
         }
 
@@ -415,22 +568,26 @@ namespace SuccuPet.Core.Pets
 
             petState.Needs.Reduce(
                 PetNeedType.Vitality,
-                (float)(policy.VitalityLossPerHour *
+                (float)(
+                    policy.VitalityLossPerHour *
                     slowedHours));
 
             petState.Needs.Reduce(
                 PetNeedType.Mood,
-                (float)(policy.MoodLossPerHour *
+                (float)(
+                    policy.MoodLossPerHour *
                     slowedHours));
 
             petState.Needs.Reduce(
                 PetNeedType.Allure,
-                (float)(policy.AllureLossPerHour *
+                (float)(
+                    policy.AllureLossPerHour *
                     slowedHours));
 
             petState.Needs.Restore(
                 PetNeedType.Rest,
-                (float)(policy.SleepRestRecoveryPerHour *
+                (float)(
+                    policy.SleepRestRecoveryPerHour *
                     effectiveHours));
         }
 
@@ -442,17 +599,20 @@ namespace SuccuPet.Core.Pets
         {
             if (petState == null)
             {
-                throw new ArgumentNullException(nameof(petState));
+                throw new ArgumentNullException(
+                    nameof(petState));
             }
 
             if (decayPolicy == null)
             {
-                throw new ArgumentNullException(nameof(decayPolicy));
+                throw new ArgumentNullException(
+                    nameof(decayPolicy));
             }
 
             if (healthPolicy == null)
             {
-                throw new ArgumentNullException(nameof(healthPolicy));
+                throw new ArgumentNullException(
+                    nameof(healthPolicy));
             }
 
             if (utcNow.Kind != DateTimeKind.Utc)
