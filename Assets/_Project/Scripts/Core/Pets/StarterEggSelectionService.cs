@@ -84,11 +84,46 @@ namespace SuccuPet.Core.Pets
 
             petState.AssignOrigin(origin, utcNow);
 
+            PrepareNeedsForFirstCare(petState);
+
             return new StarterEggSelectionResult(
                 true,
                 $"{lineage.DisplayName} selected.",
                 lineage,
                 rarity);
+        }
+
+        private static void PrepareNeedsForFirstCare(
+            PetState petState)
+        {
+            // A new PetNeeds instance starts at 100. These three reductions
+            // guarantee that the guided Feed, Bathe and Play actions are
+            // genuine successful care actions instead of rejected full-stat
+            // button presses. Policy values are reused so future balancing
+            // changes stay synchronized with the tutorial setup.
+            ReduceByActionAmount(
+                petState,
+                PetCareActionType.Feed);
+
+            ReduceByActionAmount(
+                petState,
+                PetCareActionType.Bathe);
+
+            ReduceByActionAmount(
+                petState,
+                PetCareActionType.Play);
+        }
+
+        private static void ReduceByActionAmount(
+            PetState petState,
+            PetCareActionType actionType)
+        {
+            PetCareActionDefinition definition =
+                PetCarePolicy.GetDefinition(actionType);
+
+            petState.Needs.Reduce(
+                definition.TargetNeed,
+                definition.RestoreAmount);
         }
 
         private static StarterEggSelectionResult Rejected(

@@ -67,6 +67,15 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                         ? petState.Origin.AcquiredAtUtc.Value.Ticks
                         : 0L,
 
+                growthStage = (int)petState.Growth.Stage,
+                evolutionVariant =
+                    (int)petState.Growth.Variant,
+                growthPoints = petState.Growth.GrowthPoints,
+                teenTrainingSessions =
+                    petState.Growth.TeenTrainingSessions,
+                stageStartedAtUtcTicks =
+                    petState.Growth.StageStartedAtUtc.Ticks,
+
                 fullness = petState.Needs.Fullness,
                 energy = petState.Needs.Energy,
                 happiness = petState.Needs.Happiness,
@@ -109,6 +118,7 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
             bool isInComa;
             DateTime? comaStartedUtc;
             PetOrigin origin;
+            PetGrowthState growth;
 
             if (saveData.schemaVersion == 1)
             {
@@ -123,6 +133,9 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                 isInComa = false;
                 comaStartedUtc = null;
                 origin = CreateLegacyOrigin(createdAtUtc);
+                growth = CreateLegacyGrowth(
+                    origin,
+                    createdAtUtc);
             }
             else
             {
@@ -143,6 +156,9 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                     isInComa = false;
                     comaStartedUtc = null;
                     origin = CreateLegacyOrigin(createdAtUtc);
+                    growth = CreateLegacyGrowth(
+                        origin,
+                        createdAtUtc);
                 }
                 else
                 {
@@ -165,6 +181,12 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                     origin = saveData.schemaVersion == 3
                         ? CreateLegacyOrigin(createdAtUtc)
                         : CreateSchemaFourOrigin(saveData);
+
+                    growth = saveData.schemaVersion < 5
+                        ? CreateLegacyGrowth(
+                            origin,
+                            createdAtUtc)
+                        : CreateSchemaFiveGrowth(saveData);
                 }
             }
 
@@ -195,7 +217,8 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                 health,
                 isInComa,
                 comaStartedUtc,
-                origin);
+                origin,
+                growth);
         }
 
         private static PetOrigin CreateLegacyOrigin(
@@ -243,6 +266,53 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
                 saveData.colorSeed,
                 (PetColorRarity)saveData.colorRarity,
                 acquiredAtUtc);
+        }
+
+        private static PetGrowthState CreateLegacyGrowth(
+            PetOrigin origin,
+            DateTime createdAtUtc)
+        {
+            // Existing saves with a selected lineage already passed the
+            // hatching screen before the growth system was introduced.
+            return origin.HasSelectedLineage
+                ? new PetGrowthState(
+                    PetGrowthStage.Bat,
+                    PetEvolutionVariant.None,
+                    0,
+                    0,
+                    origin.AcquiredAtUtc ?? createdAtUtc)
+                : PetGrowthState.CreateNew(createdAtUtc);
+        }
+
+        private static PetGrowthState CreateSchemaFiveGrowth(
+            PetSaveData saveData)
+        {
+            if (!Enum.IsDefined(
+                    typeof(PetGrowthStage),
+                    saveData.growthStage))
+            {
+                throw new InvalidDataException(
+                    "Save growth stage is invalid.");
+            }
+
+            if (!Enum.IsDefined(
+                    typeof(PetEvolutionVariant),
+                    saveData.evolutionVariant))
+            {
+                throw new InvalidDataException(
+                    "Save evolution variant is invalid.");
+            }
+
+            DateTime stageStartedAtUtc = ParseUtcTicks(
+                saveData.stageStartedAtUtcTicks,
+                nameof(saveData.stageStartedAtUtcTicks));
+
+            return new PetGrowthState(
+                (PetGrowthStage)saveData.growthStage,
+                (PetEvolutionVariant)saveData.evolutionVariant,
+                saveData.growthPoints,
+                saveData.teenTrainingSessions,
+                stageStartedAtUtc);
         }
 
         private static DateTime ParseUtcTicks(

@@ -9,6 +9,9 @@ namespace SuccuPet.Application.Pets
         private readonly PerformPetCareActionUseCase careUseCase;
         private readonly UpdatePetStateUseCase updateUseCase;
         private readonly SelectStarterEggUseCase starterEggUseCase;
+        private readonly CompletePetHatchingUseCase hatchingUseCase;
+        private readonly EvolvePetUseCase evolveUseCase;
+        private readonly RegisterPetTrainingUseCase trainingUseCase;
 
         public PetState CurrentPetState { get; private set; }
 
@@ -19,11 +22,20 @@ namespace SuccuPet.Application.Pets
         public event Action<PerformPetCareActionResult>
             CareActionPerformed;
 
+        public event Action<PetEvolutionResult>
+            PetEvolved;
+
+        public event Action<PetTrainingResult>
+            TrainingPerformed;
+
         public PetSession(
             LoadOrCreatePetStateUseCase loadUseCase,
             PerformPetCareActionUseCase careUseCase,
             UpdatePetStateUseCase updateUseCase,
-            SelectStarterEggUseCase starterEggUseCase)
+            SelectStarterEggUseCase starterEggUseCase,
+            CompletePetHatchingUseCase hatchingUseCase,
+            EvolvePetUseCase evolveUseCase,
+            RegisterPetTrainingUseCase trainingUseCase)
         {
             this.loadUseCase = loadUseCase ??
                 throw new ArgumentNullException(
@@ -40,6 +52,18 @@ namespace SuccuPet.Application.Pets
             this.starterEggUseCase = starterEggUseCase ??
                 throw new ArgumentNullException(
                     nameof(starterEggUseCase));
+
+            this.hatchingUseCase = hatchingUseCase ??
+                throw new ArgumentNullException(
+                    nameof(hatchingUseCase));
+
+            this.evolveUseCase = evolveUseCase ??
+                throw new ArgumentNullException(
+                    nameof(evolveUseCase));
+
+            this.trainingUseCase = trainingUseCase ??
+                throw new ArgumentNullException(
+                    nameof(trainingUseCase));
         }
 
         public LoadPetStateResult Initialize(
@@ -115,6 +139,63 @@ namespace SuccuPet.Application.Pets
             if (result.IsSuccessful)
             {
                 StateChanged?.Invoke(CurrentPetState);
+            }
+
+            return result;
+        }
+
+        public PetEvolutionResult CompleteHatching(DateTime utcNow)
+        {
+            EnsureInitialized();
+
+            PetEvolutionResult result =
+                hatchingUseCase.Execute(
+                    CurrentPetState,
+                    utcNow);
+
+            if (result.IsSuccessful)
+            {
+                StateChanged?.Invoke(CurrentPetState);
+                PetEvolved?.Invoke(result);
+            }
+
+            return result;
+        }
+
+        public PetEvolutionResult TryEvolve(DateTime utcNow)
+        {
+            EnsureInitialized();
+
+            PetEvolutionResult result =
+                evolveUseCase.Execute(
+                    CurrentPetState,
+                    utcNow);
+
+            StateChanged?.Invoke(CurrentPetState);
+
+            if (result.IsSuccessful)
+            {
+                PetEvolved?.Invoke(result);
+            }
+
+            return result;
+        }
+
+        public PetTrainingResult RegisterTeenTraining(
+            DateTime utcNow)
+        {
+            EnsureInitialized();
+
+            PetTrainingResult result =
+                trainingUseCase.Execute(
+                    CurrentPetState,
+                    utcNow);
+
+            StateChanged?.Invoke(CurrentPetState);
+
+            if (result.IsSuccessful)
+            {
+                TrainingPerformed?.Invoke(result);
             }
 
             return result;

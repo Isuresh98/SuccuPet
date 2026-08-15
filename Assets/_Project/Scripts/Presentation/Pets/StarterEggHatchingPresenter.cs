@@ -3,6 +3,7 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using SuccuPet.Bootstrap;
 using SuccuPet.Core.Pets;
 
 namespace SuccuPet.Presentation.Pets
@@ -497,12 +498,44 @@ namespace SuccuPet.Presentation.Pets
                 continueButton.interactable = false;
             }
 
+            GameEntryPoint entryPoint =
+                GameEntryPoint.Instance;
+
+            if (entryPoint == null || !entryPoint.IsReady)
+            {
+                ShowHatchingSaveError(
+                    "The game is not ready. Please restart and try again.");
+                return;
+            }
+
+            PetEvolutionResult result =
+                entryPoint.CompletePetHatching();
+
+            if (!result.IsSuccessful)
+            {
+                ShowHatchingSaveError(result.Message);
+                return;
+            }
+
             if (petCarePanel != null)
             {
                 petCarePanel.SetActive(true);
             }
 
             gameObject.SetActive(false);
+        }
+
+        private void ShowHatchingSaveError(string message)
+        {
+            canContinue = true;
+
+            SetText(titleText, "COULD NOT CONTINUE");
+            SetText(welcomeText, message);
+
+            if (continueButton != null)
+            {
+                continueButton.interactable = true;
+            }
         }
 
         private void ResetEggTransform()
