@@ -71,25 +71,86 @@ namespace SuccuPet.Presentation.Pets
 
         private PetSession petSession;
 
-        private void Start()
+       private void Start()
+{
+    RefreshNow();
+}
+
+
+private static string GetHierarchyPath(Transform target)
+{
+    if (target == null)
+    {
+        return "NULL";
+    }
+
+    string path = target.name;
+    Transform current = target.parent;
+
+    while (current != null)
+    {
+        path = current.name + "/" + path;
+        current = current.parent;
+    }
+
+    return path;
+}
+
+private static float GetCombinedCanvasAlpha(Transform target)
+{
+    if (target == null)
+    {
+        return 0f;
+    }
+
+    float combinedAlpha = 1f;
+
+    CanvasGroup[] canvasGroups =
+        target.GetComponentsInParent<CanvasGroup>(true);
+
+    for (int index = 0;
+        index < canvasGroups.Length;
+        index++)
+    {
+        combinedAlpha *= canvasGroups[index].alpha;
+    }
+
+    return combinedAlpha;
+}
+
+public void RefreshNow()
+{
+    GameEntryPoint entryPoint =
+        GameEntryPoint.Instance;
+
+    if (entryPoint == null ||
+        !entryPoint.IsReady)
+    {
+        Debug.LogError(
+            "GameEntryPoint is not ready for pet visuals.",
+            this);
+
+        return;
+    }
+
+    PetSession currentSession =
+        entryPoint.PetSession;
+
+    if (petSession != currentSession)
+    {
+        if (petSession != null)
         {
-            GameEntryPoint entryPoint = GameEntryPoint.Instance;
-
-            if (entryPoint == null || !entryPoint.IsReady)
-            {
-                Debug.LogError(
-                    "GameEntryPoint is not ready for pet visuals.",
-                    this);
-
-                enabled = false;
-                return;
-            }
-
-            petSession = entryPoint.PetSession;
-            petSession.StateChanged += Refresh;
-
-            Refresh(petSession.CurrentPetState);
+            petSession.StateChanged -= Refresh;
         }
+
+        petSession = currentSession;
+
+        petSession.StateChanged -= Refresh;
+        petSession.StateChanged += Refresh;
+    }
+
+    Refresh(petSession.CurrentPetState);
+}
 
         private void Refresh(PetState petState)
         {
@@ -236,16 +297,35 @@ namespace SuccuPet.Presentation.Pets
                     break;
             }
 
-            if (petImage != null)
-            {
-                if (targetSprite != null)
-                {
-                    petImage.sprite = targetSprite;
-                }
+           if (petImage != null)
+{
 
-                petImage.color = targetColor;
-                petImage.preserveAspect = true;
-            }
+    if (petImage.rectTransform.localScale.sqrMagnitude < 0.0001f)
+{
+    petImage.rectTransform.localScale = Vector3.one;
+}
+
+
+   
+}
+{
+    petImage.gameObject.SetActive(true);
+    petImage.enabled = true;
+
+    if (targetSprite != null)
+    {
+        petImage.sprite = targetSprite;
+    }
+    else
+    {
+        Debug.LogWarning(
+            "No sprite is available for the current pet visual state.",
+            this);
+    }
+
+    petImage.color = targetColor;
+    petImage.preserveAspect = true;
+}
 
             if (petStateText != null)
             {

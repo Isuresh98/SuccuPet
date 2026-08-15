@@ -30,6 +30,9 @@ namespace SuccuPet.Presentation.Pets
         [Header("Next Screen")]
         [SerializeField]
         private GameObject petCarePanel;
+        [SerializeField]
+private PetVisualPresenter petVisualPresenter;
+
 
         [Header("Hatching Text")]
         [SerializeField]
@@ -517,12 +520,24 @@ namespace SuccuPet.Presentation.Pets
                 return;
             }
 
-            if (petCarePanel != null)
-            {
-                petCarePanel.SetActive(true);
-            }
+if (petCarePanel != null)
+{
+    petCarePanel.SetActive(true);
+}
 
-            gameObject.SetActive(false);
+if (petVisualPresenter != null)
+{
+    petVisualPresenter.RefreshNow();
+}
+else
+{
+    Debug.LogError(
+        "PetVisualPresenter is not assigned to the hatching presenter.",
+        this);
+}
+
+gameObject.SetActive(false);
+
         }
 
         private void ShowHatchingSaveError(string message)

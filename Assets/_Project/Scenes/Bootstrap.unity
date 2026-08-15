@@ -5211,6 +5211,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   petCarePanel: {fileID: 1472798263}
+  petVisualPresenter: {fileID: 343753875}
   titleText: {fileID: 1975782729}
   petNameText: {fileID: 1983980435}
   welcomeText: {fileID: 1608636227}
@@ -9112,7 +9113,7 @@ GameObject:
   - component: {fileID: 934342307}
   - component: {fileID: 934342306}
   m_Layer: 0
-  m_Name: PetImage
+  m_Name: MainPetImage
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -9157,7 +9158,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
+  m_Sprite: {fileID: 21300022, guid: 11f8561e37dc241a2a5e29f925d39c10, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -12574,7 +12575,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -1805}
+  m_AnchoredPosition: {x: 0, y: -1755}
   m_SizeDelta: {x: -96, y: 310}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1306150569
@@ -15130,7 +15131,7 @@ GameObject:
   - component: {fileID: 1618296616}
   - component: {fileID: 1618296615}
   m_Layer: 0
-  m_Name: PetImage
+  m_Name: HatchPetImage
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -19808,6 +19809,8 @@ MonoBehaviour:
   defaultPetId: player-pet-001
   defaultPetDisplayName: Succu
   autosaveIntervalSeconds: 30
+  starterEggRoot: {fileID: 1121832587}
+  petCarePanel: {fileID: 1472798263}
 --- !u!1 &2085359009
 GameObject:
   m_ObjectHideFlags: 0

@@ -40,6 +40,9 @@ namespace SuccuPet.Presentation.Pets
         private Quaternion defaultRotation;
         private Vector2 defaultPosition;
 
+        private bool hasCapturedDefaults;
+
+
         private void Start()
         {
             GameEntryPoint entryPoint = GameEntryPoint.Instance;
@@ -64,14 +67,39 @@ namespace SuccuPet.Presentation.Pets
                 return;
             }
 
-            defaultScale = petTransform.localScale;
-            defaultRotation = petTransform.localRotation;
-            defaultPosition = petTransform.anchoredPosition;
+           CaptureTransformDefaults();
 
             petSession = entryPoint.PetSession;
             petSession.CareActionPerformed +=
                 HandleCareActionPerformed;
         }
+
+        private void Awake()
+{
+    CaptureTransformDefaults();
+}
+
+private void CaptureTransformDefaults()
+{
+    if (hasCapturedDefaults ||
+        petTransform == null)
+    {
+        return;
+    }
+
+    defaultScale = petTransform.localScale;
+
+    if (defaultScale.sqrMagnitude < 0.0001f)
+    {
+        defaultScale = Vector3.one;
+        petTransform.localScale = defaultScale;
+    }
+
+    defaultRotation = petTransform.localRotation;
+    defaultPosition = petTransform.anchoredPosition;
+    hasCapturedDefaults = true;
+}
+
 
         private void HandleCareActionPerformed(
             PerformPetCareActionResult result)
@@ -174,28 +202,32 @@ namespace SuccuPet.Presentation.Pets
                 Vector2.right * shake;
         }
 
-        private void ResetTransform()
-        {
-            if (petTransform == null)
-            {
-                return;
-            }
+       private void ResetTransform()
+{
+    if (petTransform == null ||
+        !hasCapturedDefaults)
+    {
+        return;
+    }
 
-            petTransform.localScale = defaultScale;
-            petTransform.localRotation = defaultRotation;
-            petTransform.anchoredPosition = defaultPosition;
-        }
+    petTransform.localScale = defaultScale;
+    petTransform.localRotation = defaultRotation;
+    petTransform.anchoredPosition = defaultPosition;
+}
 
-        private void OnDisable()
-        {
-            if (feedbackCoroutine != null)
-            {
-                StopCoroutine(feedbackCoroutine);
-                feedbackCoroutine = null;
-            }
+       private void OnDisable()
+{
+    if (feedbackCoroutine != null)
+    {
+        StopCoroutine(feedbackCoroutine);
+        feedbackCoroutine = null;
+    }
 
-            ResetTransform();
-        }
+    if (hasCapturedDefaults)
+    {
+        ResetTransform();
+    }
+}
 
         private void OnDestroy()
         {

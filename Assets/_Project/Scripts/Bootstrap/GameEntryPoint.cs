@@ -25,6 +25,14 @@ namespace SuccuPet.Bootstrap
         [SerializeField]
         private float autosaveIntervalSeconds = 30f;
 
+        [Header("Startup Presentation")]
+[SerializeField]
+private GameObject starterEggRoot;
+
+[SerializeField]
+private GameObject petCarePanel;
+
+
         private static GameEntryPoint instance;
 
         private PetSession petSession;
@@ -64,13 +72,13 @@ namespace SuccuPet.Bootstrap
                 enabled = false;
                 return;
             }
+ConfigureApplication();
+ComposeDependencies();
+InitializeGame();
+ConfigureStartupPresentation();
 
-            ConfigureApplication();
-            ComposeDependencies();
-            InitializeGame();
-
-            SceneManager.activeSceneChanged +=
-                HandleActiveSceneChanged;
+SceneManager.activeSceneChanged +=
+    HandleActiveSceneChanged;
         }
 
         private void ConfigureApplication()
@@ -173,6 +181,40 @@ namespace SuccuPet.Bootstrap
                 $"Lineage: " +
                 $"{(petState.Origin.HasSelectedLineage ? petState.Origin.LineageId : "Not selected")}");
         }
+
+        private void ConfigureStartupPresentation()
+{
+    if (!IsReady)
+    {
+        return;
+    }
+
+    PetState petState =
+        petSession.CurrentPetState;
+
+    bool requiresStarterSelection =
+        !petState.Origin.HasSelectedLineage;
+
+    if (petCarePanel != null &&
+        requiresStarterSelection)
+    {
+        petCarePanel.SetActive(false);
+    }
+
+    if (starterEggRoot == null)
+    {
+        Debug.LogError(
+            "StarterEggRoot is not assigned to GameEntryPoint.",
+            this);
+
+        return;
+    }
+
+    // The presenter decides whether to show egg selection,
+    // resume hatching, or open the existing pet.
+    starterEggRoot.SetActive(true);
+}
+
 
         public StarterEggSelectionResult SelectStarterEgg(
             string lineageId)
