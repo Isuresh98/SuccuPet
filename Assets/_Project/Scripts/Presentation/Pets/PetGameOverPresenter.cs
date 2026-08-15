@@ -1,6 +1,7 @@
 using System;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using SuccuPet.Application.Pets;
 using SuccuPet.Bootstrap;
 using SuccuPet.Core.Pets;
@@ -23,12 +24,15 @@ namespace SuccuPet.Presentation.Pets
         [SerializeField]
         private TMP_Text survivalTimeText;
 
+        [SerializeField]
+        private Button restartButton;
+
+        private GameEntryPoint entryPoint;
         private PetSession petSession;
 
         private void Start()
         {
-            GameEntryPoint entryPoint =
-                GameEntryPoint.Instance;
+            entryPoint = GameEntryPoint.Instance;
 
             if (entryPoint == null ||
                 !entryPoint.IsReady)
@@ -51,10 +55,23 @@ namespace SuccuPet.Presentation.Pets
                 return;
             }
 
+            if (restartButton == null)
+            {
+                Debug.LogError(
+                    "Restart Button is not assigned.",
+                    this);
+
+                enabled = false;
+                return;
+            }
+
             petSession = entryPoint.PetSession;
 
             petSession.StateChanged +=
                 HandleStateChanged;
+
+            restartButton.onClick.AddListener(
+                HandleRestartClicked);
 
             Refresh(petSession.CurrentPetState);
         }
@@ -63,6 +80,25 @@ namespace SuccuPet.Presentation.Pets
             PetState petState)
         {
             Refresh(petState);
+        }
+
+        private void HandleRestartClicked()
+        {
+            restartButton.interactable = false;
+
+            try
+            {
+                entryPoint.StartNewPet();
+            }
+            catch (Exception exception)
+            {
+                Debug.LogError(
+                    $"Could not start a new pet: " +
+                    $"{exception.Message}",
+                    this);
+
+                restartButton.interactable = true;
+            }
         }
 
         private void Refresh(PetState petState)
@@ -79,6 +115,7 @@ namespace SuccuPet.Presentation.Pets
             }
 
             gameOverOverlay.transform.SetAsLastSibling();
+            restartButton.interactable = true;
 
             if (gameOverTitleText != null)
             {
@@ -132,6 +169,12 @@ namespace SuccuPet.Presentation.Pets
             {
                 petSession.StateChanged -=
                     HandleStateChanged;
+            }
+
+            if (restartButton != null)
+            {
+                restartButton.onClick.RemoveListener(
+                    HandleRestartClicked);
             }
         }
     }

@@ -26,12 +26,11 @@ namespace SuccuPet.Bootstrap
         private float autosaveIntervalSeconds = 30f;
 
         [Header("Startup Presentation")]
-[SerializeField]
-private GameObject starterEggRoot;
+        [SerializeField]
+        private GameObject starterEggRoot;
 
-[SerializeField]
-private GameObject petCarePanel;
-
+        [SerializeField]
+        private GameObject petCarePanel;
 
         private static GameEntryPoint instance;
 
@@ -72,13 +71,14 @@ private GameObject petCarePanel;
                 enabled = false;
                 return;
             }
-ConfigureApplication();
-ComposeDependencies();
-InitializeGame();
-ConfigureStartupPresentation();
 
-SceneManager.activeSceneChanged +=
-    HandleActiveSceneChanged;
+            ConfigureApplication();
+            ComposeDependencies();
+            InitializeGame();
+            ConfigureStartupPresentation();
+
+            SceneManager.activeSceneChanged +=
+                HandleActiveSceneChanged;
         }
 
         private void ConfigureApplication()
@@ -133,6 +133,9 @@ SceneManager.activeSceneChanged +=
                     PetGrowthPolicy.Default,
                     repository);
 
+            ResetPetStateUseCase resetUseCase =
+                new ResetPetStateUseCase(repository);
+
             petSession = new PetSession(
                 loadUseCase,
                 careUseCase,
@@ -140,7 +143,8 @@ SceneManager.activeSceneChanged +=
                 starterEggUseCase,
                 hatchingUseCase,
                 evolveUseCase,
-                trainingUseCase);
+                trainingUseCase,
+                resetUseCase);
         }
 
         private void InitializeGame()
@@ -176,6 +180,7 @@ SceneManager.activeSceneChanged +=
                 $"XP: {petState.Stats.CurrentExperience} | " +
                 $"Health: {petState.Health.Value} | " +
                 $"Coma: {petState.IsInComa} | " +
+                $"Dead: {petState.IsDead} | " +
                 $"Stage: {petState.Growth.Stage} | " +
                 $"Variant: {petState.Growth.Variant} | " +
                 $"Lineage: " +
@@ -183,38 +188,35 @@ SceneManager.activeSceneChanged +=
         }
 
         private void ConfigureStartupPresentation()
-{
-    if (!IsReady)
-    {
-        return;
-    }
+        {
+            if (!IsReady)
+            {
+                return;
+            }
 
-    PetState petState =
-        petSession.CurrentPetState;
+            PetState petState =
+                petSession.CurrentPetState;
 
-    bool requiresStarterSelection =
-        !petState.Origin.HasSelectedLineage;
+            bool requiresStarterSelection =
+                !petState.Origin.HasSelectedLineage;
 
-    if (petCarePanel != null &&
-        requiresStarterSelection)
-    {
-        petCarePanel.SetActive(false);
-    }
+            if (petCarePanel != null &&
+                requiresStarterSelection)
+            {
+                petCarePanel.SetActive(false);
+            }
 
-    if (starterEggRoot == null)
-    {
-        Debug.LogError(
-            "StarterEggRoot is not assigned to GameEntryPoint.",
-            this);
+            if (starterEggRoot == null)
+            {
+                Debug.LogError(
+                    "StarterEggRoot is not assigned to GameEntryPoint.",
+                    this);
 
-        return;
-    }
+                return;
+            }
 
-    // The presenter decides whether to show egg selection,
-    // resume hatching, or open the existing pet.
-    starterEggRoot.SetActive(true);
-}
-
+            starterEggRoot.SetActive(true);
+        }
 
         public StarterEggSelectionResult SelectStarterEgg(
             string lineageId)
@@ -261,7 +263,8 @@ SceneManager.activeSceneChanged +=
             }
 
             PetEvolutionResult result =
-                petSession.CompleteHatching(DateTime.UtcNow);
+                petSession.CompleteHatching(
+                    DateTime.UtcNow);
 
             LogEvolutionResult(result);
             return result;
@@ -291,7 +294,8 @@ SceneManager.activeSceneChanged +=
             }
 
             PetTrainingResult result =
-                petSession.RegisterTeenTraining(DateTime.UtcNow);
+                petSession.RegisterTeenTraining(
+                    DateTime.UtcNow);
 
             if (environmentConfig.EnableDebugLogs)
             {
@@ -366,7 +370,8 @@ SceneManager.activeSceneChanged +=
             return result;
         }
 
-        private void LogEvolutionResult(PetEvolutionResult result)
+        private void LogEvolutionResult(
+            PetEvolutionResult result)
         {
             if (!environmentConfig.EnableDebugLogs)
             {
@@ -416,6 +421,41 @@ SceneManager.activeSceneChanged +=
             }
 
             return result;
+        }
+
+        public PetState StartNewPet()
+        {
+            if (!IsReady)
+            {
+                throw new InvalidOperationException(
+                    "Game is not ready.");
+            }
+
+            if (starterEggRoot != null)
+            {
+                starterEggRoot.SetActive(true);
+            }
+
+            PetState newPetState =
+                petSession.StartNewPet(
+                    defaultPetId,
+                    defaultPetDisplayName,
+                    DateTime.UtcNow);
+
+            autosaveTimer = 0f;
+
+            ConfigureStartupPresentation();
+
+            if (environmentConfig.EnableDebugLogs)
+            {
+                Debug.Log(
+                    $"New pet started | " +
+                    $"Pet ID: {newPetState.Profile.PetId} | " +
+                    $"Name: {newPetState.Profile.DisplayName}",
+                    this);
+            }
+
+            return newPetState;
         }
 
         private void Update()
@@ -468,14 +508,21 @@ SceneManager.activeSceneChanged +=
             try
             {
                 PetDecayResult result =
-                    petSession.SimulateAndSave(DateTime.UtcNow);
+                    petSession.SimulateAndSave(
+                        DateTime.UtcNow);
 
                 if (!environmentConfig.EnableDebugLogs)
                 {
                     return;
                 }
 
-                if (result.EnteredComa)
+                if (result.Died)
+                {
+                    Debug.LogError(
+                        "Pet died after failing to recover from the care coma.",
+                        this);
+                }
+                else if (result.EnteredComa)
                 {
                     Debug.LogWarning(
                         "Pet entered a care coma. " +

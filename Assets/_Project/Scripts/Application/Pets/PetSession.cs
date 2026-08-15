@@ -12,13 +12,13 @@ namespace SuccuPet.Application.Pets
         private readonly CompletePetHatchingUseCase hatchingUseCase;
         private readonly EvolvePetUseCase evolveUseCase;
         private readonly RegisterPetTrainingUseCase trainingUseCase;
+        private readonly ResetPetStateUseCase resetUseCase;
 
         public PetState CurrentPetState { get; private set; }
 
         public bool IsInitialized => CurrentPetState != null;
 
         public event Action<PetState> StateChanged;
-        
 
         public event Action<PerformPetCareActionResult>
             CareActionPerformed;
@@ -29,8 +29,8 @@ namespace SuccuPet.Application.Pets
         public event Action<PetTrainingResult>
             TrainingPerformed;
 
-            public event Action<PetState> PetDied;
-
+        public event Action<PetState>
+            PetDied;
 
         public PetSession(
             LoadOrCreatePetStateUseCase loadUseCase,
@@ -39,7 +39,8 @@ namespace SuccuPet.Application.Pets
             SelectStarterEggUseCase starterEggUseCase,
             CompletePetHatchingUseCase hatchingUseCase,
             EvolvePetUseCase evolveUseCase,
-            RegisterPetTrainingUseCase trainingUseCase)
+            RegisterPetTrainingUseCase trainingUseCase,
+            ResetPetStateUseCase resetUseCase)
         {
             this.loadUseCase = loadUseCase ??
                 throw new ArgumentNullException(
@@ -68,6 +69,10 @@ namespace SuccuPet.Application.Pets
             this.trainingUseCase = trainingUseCase ??
                 throw new ArgumentNullException(
                     nameof(trainingUseCase));
+
+            this.resetUseCase = resetUseCase ??
+                throw new ArgumentNullException(
+                    nameof(resetUseCase));
         }
 
         public LoadPetStateResult Initialize(
@@ -148,7 +153,8 @@ namespace SuccuPet.Application.Pets
             return result;
         }
 
-        public PetEvolutionResult CompleteHatching(DateTime utcNow)
+        public PetEvolutionResult CompleteHatching(
+            DateTime utcNow)
         {
             EnsureInitialized();
 
@@ -166,7 +172,8 @@ namespace SuccuPet.Application.Pets
             return result;
         }
 
-        public PetEvolutionResult TryEvolve(DateTime utcNow)
+        public PetEvolutionResult TryEvolve(
+            DateTime utcNow)
         {
             EnsureInitialized();
 
@@ -205,25 +212,43 @@ namespace SuccuPet.Application.Pets
             return result;
         }
 
-       public PetDecayResult SimulateAndSave(
-    DateTime utcNow)
-{
-    EnsureInitialized();
+        public PetDecayResult SimulateAndSave(
+            DateTime utcNow)
+        {
+            EnsureInitialized();
 
-    PetDecayResult result =
-        updateUseCase.SimulateAndSave(
-            CurrentPetState,
-            utcNow);
+            PetDecayResult result =
+                updateUseCase.SimulateAndSave(
+                    CurrentPetState,
+                    utcNow);
 
-    StateChanged?.Invoke(CurrentPetState);
+            StateChanged?.Invoke(CurrentPetState);
 
-    if (result.Died)
-    {
-        PetDied?.Invoke(CurrentPetState);
-    }
+            if (result.Died)
+            {
+                PetDied?.Invoke(CurrentPetState);
+            }
 
-    return result;
-}
+            return result;
+        }
+
+        public PetState StartNewPet(
+            string petId,
+            string displayName,
+            DateTime utcNow)
+        {
+            EnsureInitialized();
+
+            CurrentPetState =
+                resetUseCase.Execute(
+                    petId,
+                    displayName,
+                    utcNow);
+
+            StateChanged?.Invoke(CurrentPetState);
+
+            return CurrentPetState;
+        }
 
         private void EnsureInitialized()
         {

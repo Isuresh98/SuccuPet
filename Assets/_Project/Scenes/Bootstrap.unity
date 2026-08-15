@@ -14592,6 +14592,7 @@ MonoBehaviour:
   gameOverTitleText: {fileID: 54521169}
   gameOverMessageText: {fileID: 1484129941}
   survivalTimeText: {fileID: 1360079784}
+  restartButton: {fileID: 1937689846}
 --- !u!1 &1477922414
 GameObject:
   m_ObjectHideFlags: 0

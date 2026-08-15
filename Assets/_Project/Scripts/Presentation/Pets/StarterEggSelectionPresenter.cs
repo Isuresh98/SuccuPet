@@ -146,7 +146,17 @@ namespace SuccuPet.Presentation.Pets
             }
         }
 
+        private void OnEnable()
+        {
+            TryBindAndRefresh(logNotReady: false);
+        }
+
         private void Start()
+        {
+            TryBindAndRefresh(logNotReady: true);
+        }
+
+        private void TryBindAndRefresh(bool logNotReady)
         {
             GameEntryPoint entryPoint =
                 GameEntryPoint.Instance;
@@ -154,18 +164,27 @@ namespace SuccuPet.Presentation.Pets
             if (entryPoint == null ||
                 !entryPoint.IsReady)
             {
-                Debug.LogError(
-                    "GameEntryPoint is not ready for starter selection.",
-                    this);
+                if (logNotReady)
+                {
+                    Debug.LogError(
+                        "GameEntryPoint is not ready for starter selection.",
+                        this);
+                }
 
-                enabled = false;
                 return;
             }
 
-            petSession = entryPoint.PetSession;
+            if (petSession != entryPoint.PetSession)
+            {
+                UnbindStateChanged();
+                petSession = entryPoint.PetSession;
+            }
 
-            petSession.StateChanged += Refresh;
-            isBound = true;
+            if (!isBound)
+            {
+                petSession.StateChanged += Refresh;
+                isBound = true;
+            }
 
             Refresh(petSession.CurrentPetState);
         }
