@@ -189,6 +189,16 @@ namespace SuccuPet.Presentation.Pets
                     return;
                 }
 
+                // If the app closed after egg confirmation but before the
+                // hatching sequence completed, resume hatching instead of
+                // opening Pet Care with an Egg-stage pet.
+                if (petState.Growth.Stage == PetGrowthStage.Egg)
+                {
+                    ShowHatchingState(
+                        petState.Origin.LineageId);
+                    return;
+                }
+
                 // A previously saved pet should open Pet Care directly.
                 ShowPetCareState();
                 return;
@@ -465,6 +475,10 @@ namespace SuccuPet.Presentation.Pets
                 ShowSelectionError(result.Message);
                 return;
             }
+
+            // The pending marker makes the tutorial survive an app close
+            // between egg confirmation and the Pet Care screen.
+            FirstCareTutorialPresenter.MarkPendingForNewPet();
 
             pendingLineageId = null;
             ShowHatchingState(selectedLineageId);

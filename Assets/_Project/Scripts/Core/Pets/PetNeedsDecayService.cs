@@ -84,7 +84,8 @@ namespace SuccuPet.Core.Pets
 
             // The pet lifecycle begins only after onboarding selects an egg.
             // Consume elapsed time so onboarding can never create neglect.
-            if (!petState.Origin.HasSelectedLineage)
+            if (!petState.Origin.HasSelectedLineage ||
+                petState.Growth.Stage == PetGrowthStage.Egg)
             {
                 petState.MarkSimulationUpdated(utcNow);
                 return CreateNoChangeResult(petState);

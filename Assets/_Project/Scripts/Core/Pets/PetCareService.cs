@@ -116,6 +116,16 @@ namespace SuccuPet.Core.Pets
                     "Choose a starter egg before caring for your pet.");
             }
 
+            if (petState.Growth.Stage == PetGrowthStage.Egg)
+            {
+                return CreateRejectedResult(
+                    actionType,
+                    definition.TargetNeed,
+                    previousNeedValue,
+                    previousLevel,
+                    "Complete the hatching sequence before caring for your pet.");
+            }
+
             if (actionType == PetCareActionType.Sleep)
             {
                 return CreateRejectedResult(

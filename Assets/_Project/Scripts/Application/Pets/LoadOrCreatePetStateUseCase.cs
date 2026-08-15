@@ -24,16 +24,21 @@ namespace SuccuPet.Application.Pets
     {
         private readonly IPetStateRepository repository;
         private readonly PetDecayPolicy decayPolicy;
+        private readonly PetGrowthPolicy growthPolicy;
 
         public LoadOrCreatePetStateUseCase(
             IPetStateRepository repository,
-            PetDecayPolicy decayPolicy)
+            PetDecayPolicy decayPolicy,
+            PetGrowthPolicy growthPolicy)
         {
             this.repository = repository ??
                 throw new ArgumentNullException(nameof(repository));
 
             this.decayPolicy = decayPolicy ??
                 throw new ArgumentNullException(nameof(decayPolicy));
+
+            this.growthPolicy = growthPolicy ??
+                throw new ArgumentNullException(nameof(growthPolicy));
         }
 
         public LoadPetStateResult Execute(
@@ -55,6 +60,10 @@ namespace SuccuPet.Application.Pets
                         petState,
                         utcNow,
                         decayPolicy);
+
+                PetGrowthService.ReevaluateOngoingVariant(
+                    petState,
+                    growthPolicy);
 
                 repository.Save(petState);
 

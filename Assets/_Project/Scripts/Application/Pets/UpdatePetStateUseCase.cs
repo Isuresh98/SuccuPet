@@ -23,15 +23,21 @@ namespace SuccuPet.Application.Pets
     public sealed class UpdatePetStateUseCase
     {
         private readonly PetDecayPolicy decayPolicy;
+        private readonly PetGrowthPolicy growthPolicy;
         private readonly IPetStateRepository repository;
 
         public UpdatePetStateUseCase(
             PetDecayPolicy decayPolicy,
+            PetGrowthPolicy growthPolicy,
             IPetStateRepository repository)
         {
             this.decayPolicy = decayPolicy ??
                 throw new ArgumentNullException(
                     nameof(decayPolicy));
+
+            this.growthPolicy = growthPolicy ??
+                throw new ArgumentNullException(
+                    nameof(growthPolicy));
 
             this.repository = repository ??
                 throw new ArgumentNullException(
@@ -50,6 +56,10 @@ namespace SuccuPet.Application.Pets
                     utcNow,
                     decayPolicy);
 
+            PetGrowthService.ReevaluateOngoingVariant(
+                petState,
+                growthPolicy);
+
             repository.Save(petState);
             return decayResult;
         }
@@ -67,6 +77,10 @@ namespace SuccuPet.Application.Pets
                     petState,
                     utcNow,
                     decayPolicy);
+
+            PetGrowthService.ReevaluateOngoingVariant(
+                petState,
+                growthPolicy);
 
             bool stateChanged = shouldSleep
                 ? petState.StartSleeping(utcNow)

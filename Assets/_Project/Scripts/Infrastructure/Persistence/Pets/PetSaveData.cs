@@ -5,7 +5,7 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
     [Serializable]
     public sealed class PetSaveData
     {
-        public const int CurrentSchemaVersion = 4;
+        public const int CurrentSchemaVersion = 5;
 
         public int schemaVersion = CurrentSchemaVersion;
 
@@ -32,6 +32,12 @@ namespace SuccuPet.Infrastructure.Persistence.Pets
         public int colorSeed;
         public int colorRarity;
         public long acquiredAtUtcTicks;
+
+        public int growthStage;
+        public int evolutionVariant;
+        public int growthPoints;
+        public int teenTrainingSessions;
+        public long stageStartedAtUtcTicks;
 
         public float fullness;
         public float energy;

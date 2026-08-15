@@ -9,6 +9,7 @@ namespace SuccuPet.Core.Pets
         public PetStats Stats { get; }
         public PetHealth Health { get; }
         public PetOrigin Origin { get; private set; }
+        public PetGrowthState Growth { get; }
         public DateTime LastSimulationUtc { get; private set; }
         public bool IsSleeping { get; private set; }
         public DateTime? SleepStartedUtc { get; private set; }
@@ -28,7 +29,8 @@ namespace SuccuPet.Core.Pets
             PetHealth health = null,
             bool isInComa = false,
             DateTime? comaStartedUtc = null,
-            PetOrigin origin = null)
+            PetOrigin origin = null,
+            PetGrowthState growth = null)
         {
             Profile = profile ??
                 throw new ArgumentNullException(nameof(profile));
@@ -41,6 +43,8 @@ namespace SuccuPet.Core.Pets
 
             Health = health ?? new PetHealth();
             Origin = origin ?? PetOrigin.Unselected;
+            Growth = growth ?? PetGrowthState.CreateNew(
+                profile.CreatedAtUtc);
 
             if (lastSimulationUtc.Kind != DateTimeKind.Utc)
             {
@@ -94,7 +98,8 @@ namespace SuccuPet.Core.Pets
                 new PetNeeds(),
                 new PetStats(),
                 utcNow,
-                origin: PetOrigin.Unselected);
+                origin: PetOrigin.Unselected,
+                growth: PetGrowthState.CreateNew(utcNow));
         }
 
         public bool StartSleeping(DateTime utcNow)
@@ -103,7 +108,8 @@ namespace SuccuPet.Core.Pets
 
             if (IsSleeping ||
                 IsInComa ||
-                !Origin.HasSelectedLineage)
+                !Origin.HasSelectedLineage ||
+                Growth.Stage == PetGrowthStage.Egg)
             {
                 return false;
             }

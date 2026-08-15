@@ -7,31 +7,40 @@ namespace SuccuPet.Application.Pets
     {
         public PetDecayResult DecayResult { get; }
         public PetCareActionResult CareResult { get; }
+        public PetGrowthUpdateResult GrowthResult { get; }
 
         public bool IsSuccessful =>
             CareResult.IsSuccessful;
 
         public PerformPetCareActionResult(
             PetDecayResult decayResult,
-            PetCareActionResult careResult)
+            PetCareActionResult careResult,
+            PetGrowthUpdateResult growthResult)
         {
             DecayResult = decayResult;
             CareResult = careResult;
+            GrowthResult = growthResult;
         }
     }
 
     public sealed class PerformPetCareActionUseCase
     {
         private readonly PetDecayPolicy decayPolicy;
+        private readonly PetGrowthPolicy growthPolicy;
         private readonly IPetStateRepository repository;
 
         public PerformPetCareActionUseCase(
             PetDecayPolicy decayPolicy,
+            PetGrowthPolicy growthPolicy,
             IPetStateRepository repository)
         {
             this.decayPolicy = decayPolicy ??
                 throw new ArgumentNullException(
                     nameof(decayPolicy));
+
+            this.growthPolicy = growthPolicy ??
+                throw new ArgumentNullException(
+                    nameof(growthPolicy));
 
             this.repository = repository ??
                 throw new ArgumentNullException(
@@ -67,6 +76,14 @@ namespace SuccuPet.Application.Pets
                     petState,
                     actionType);
 
+            PetGrowthUpdateResult growthResult =
+                PetGrowthService.AddCareGrowth(
+                    petState,
+                    careResult.IsSuccessful
+                        ? careResult.ExperienceEarned
+                        : 0,
+                    growthPolicy);
+
             // Persist both successful actions and any elapsed simulation.
             if (careResult.IsSuccessful || decayResult.Applied)
             {
@@ -75,7 +92,8 @@ namespace SuccuPet.Application.Pets
 
             return new PerformPetCareActionResult(
                 decayResult,
-                careResult);
+                careResult,
+                growthResult);
         }
     }
 }

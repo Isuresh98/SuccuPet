@@ -92,26 +92,47 @@ namespace SuccuPet.Bootstrap
             LoadOrCreatePetStateUseCase loadUseCase =
                 new LoadOrCreatePetStateUseCase(
                     repository,
-                    PetDecayPolicy.Default);
+                    PetDecayPolicy.Default,
+                    PetGrowthPolicy.Default);
 
             PerformPetCareActionUseCase careUseCase =
                 new PerformPetCareActionUseCase(
                     PetDecayPolicy.Default,
+                    PetGrowthPolicy.Default,
                     repository);
 
             UpdatePetStateUseCase updateUseCase =
                 new UpdatePetStateUseCase(
                     PetDecayPolicy.Default,
+                    PetGrowthPolicy.Default,
                     repository);
 
             SelectStarterEggUseCase starterEggUseCase =
                 new SelectStarterEggUseCase(repository);
 
+            CompletePetHatchingUseCase hatchingUseCase =
+                new CompletePetHatchingUseCase(repository);
+
+            EvolvePetUseCase evolveUseCase =
+                new EvolvePetUseCase(
+                    PetDecayPolicy.Default,
+                    PetGrowthPolicy.Default,
+                    repository);
+
+            RegisterPetTrainingUseCase trainingUseCase =
+                new RegisterPetTrainingUseCase(
+                    PetDecayPolicy.Default,
+                    PetGrowthPolicy.Default,
+                    repository);
+
             petSession = new PetSession(
                 loadUseCase,
                 careUseCase,
                 updateUseCase,
-                starterEggUseCase);
+                starterEggUseCase,
+                hatchingUseCase,
+                evolveUseCase,
+                trainingUseCase);
         }
 
         private void InitializeGame()
@@ -147,6 +168,8 @@ namespace SuccuPet.Bootstrap
                 $"XP: {petState.Stats.CurrentExperience} | " +
                 $"Health: {petState.Health.Value} | " +
                 $"Coma: {petState.IsInComa} | " +
+                $"Stage: {petState.Growth.Stage} | " +
+                $"Variant: {petState.Growth.Variant} | " +
                 $"Lineage: " +
                 $"{(petState.Origin.HasSelectedLineage ? petState.Origin.LineageId : "Not selected")}");
         }
@@ -179,6 +202,69 @@ namespace SuccuPet.Bootstrap
                 {
                     Debug.LogWarning(
                         $"Starter egg rejected | " +
+                        $"Reason: {result.Message}",
+                        this);
+                }
+            }
+
+            return result;
+        }
+
+        public PetEvolutionResult CompletePetHatching()
+        {
+            if (!IsReady)
+            {
+                throw new InvalidOperationException(
+                    "Game is not ready.");
+            }
+
+            PetEvolutionResult result =
+                petSession.CompleteHatching(DateTime.UtcNow);
+
+            LogEvolutionResult(result);
+            return result;
+        }
+
+        public PetEvolutionResult TryEvolvePet()
+        {
+            if (!IsReady)
+            {
+                throw new InvalidOperationException(
+                    "Game is not ready.");
+            }
+
+            PetEvolutionResult result =
+                petSession.TryEvolve(DateTime.UtcNow);
+
+            LogEvolutionResult(result);
+            return result;
+        }
+
+        public PetTrainingResult RegisterTeenTrainingSession()
+        {
+            if (!IsReady)
+            {
+                throw new InvalidOperationException(
+                    "Game is not ready.");
+            }
+
+            PetTrainingResult result =
+                petSession.RegisterTeenTraining(DateTime.UtcNow);
+
+            if (environmentConfig.EnableDebugLogs)
+            {
+                if (result.IsSuccessful)
+                {
+                    Debug.Log(
+                        $"Teen training completed | " +
+                        $"Sessions: {result.CurrentSessions} | " +
+                        $"Growth earned: {result.GrowthPointsEarned}",
+                        this);
+                }
+                else
+                {
+                    Debug.LogWarning(
+                        $"Teen training rejected | " +
                         $"Reason: {result.Message}",
                         this);
                 }
@@ -228,11 +314,40 @@ namespace SuccuPet.Bootstrap
                     $"Value: {careResult.PreviousNeedValue:0.0} -> " +
                     $"{careResult.CurrentNeedValue:0.0} | " +
                     $"XP Earned: {careResult.ExperienceEarned} | " +
+                    $"Growth: " +
+                    $"{result.GrowthResult.PreviousGrowthPoints} -> " +
+                    $"{result.GrowthResult.CurrentGrowthPoints} | " +
                     $"Affection Earned: " +
                     $"{careResult.AffectionEarned:0.0}");
             }
 
             return result;
+        }
+
+        private void LogEvolutionResult(PetEvolutionResult result)
+        {
+            if (!environmentConfig.EnableDebugLogs)
+            {
+                return;
+            }
+
+            if (result.IsSuccessful)
+            {
+                Debug.Log(
+                    $"Pet evolution completed | " +
+                    $"Gate: {result.Gate} | " +
+                    $"Stage: {result.PreviousStage} -> " +
+                    $"{result.CurrentStage} | " +
+                    $"Variant: {result.CurrentVariant}",
+                    this);
+            }
+            else
+            {
+                Debug.LogWarning(
+                    $"Pet evolution rejected | " +
+                    $"Reason: {result.Message}",
+                    this);
+            }
         }
 
         public SetPetSleepingResult SetPetSleeping(
