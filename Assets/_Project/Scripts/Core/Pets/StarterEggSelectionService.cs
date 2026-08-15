@@ -187,4 +187,5 @@ namespace SuccuPet.Core.Pets
             return PetColorRarity.Rare;
         }
     }
+    
 }
