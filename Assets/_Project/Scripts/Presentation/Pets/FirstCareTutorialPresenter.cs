@@ -114,6 +114,14 @@ namespace SuccuPet.Presentation.Pets
             SetOverlayVisible(false);
         }
 
+        private void OnEnable()
+        {
+            // PetCarePanel is disabled during egg selection and hatching.
+            // Re-check the persisted pending flag every time the panel is
+            // opened so the tutorial starts immediately after hatching.
+            Initialize();
+        }
+
         private void Update()
         {
             if (!isTutorialActive ||
@@ -141,7 +149,7 @@ namespace SuccuPet.Presentation.Pets
 
         public void Initialize()
         {
-            if (isInitialized)
+            if (isTutorialActive)
             {
                 return;
             }
