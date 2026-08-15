@@ -580,4 +580,5 @@ namespace SuccuPet.Presentation.Pets
             UnbindStateChanged();
         }
     }
+    
 }
