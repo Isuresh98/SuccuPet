@@ -4,6 +4,7 @@
   <Project Path="Unity.2D.Animation.Samples.Runtime.csproj" />
   <Project Path="SuccuPet.Presentation.csproj" />
   <Project Path="SuccuPet.Bootstrap.csproj" />
+  <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="SuccuPet.Infrastructure.csproj" />
   <Project Path="Unity.2D.Animation.Samples.Dependency.csproj" />
   <Project Path="Assembly-CSharp.csproj" />

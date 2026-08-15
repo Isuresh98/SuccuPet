@@ -20610,6 +20610,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2084929605}
   - component: {fileID: 2084929606}
+  - component: {fileID: 2084929607}
   m_Layer: 0
   m_Name: GameEntryPoint
   m_TagString: Untagged
@@ -20650,6 +20651,41 @@ MonoBehaviour:
   autosaveIntervalSeconds: 30
   starterEggRoot: {fileID: 1121832587}
   petCarePanel: {fileID: 1472798263}
+--- !u!114 &2084929607
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2084929604}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c91cf4babb26f4311b0823e87e602331, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  musicSource: {fileID: 0}
+  sfxSource: {fileID: 0}
+  backgroundMusic: {fileID: 8300000, guid: 5cda26a5f8a7e405897917e448265628, type: 3}
+  musicVolume: 0.22
+  uiClickClip: {fileID: 8300000, guid: b905bf3f6fe18434bb1483747d87dbae, type: 3}
+  rejectedClip: {fileID: 8300000, guid: 6293e6a1263ae4fdf9af8c576636b712, type: 3}
+  successClip: {fileID: 8300000, guid: 25809c08c81eb434cbd6b25eb2cc9d77, type: 3}
+  feedClip: {fileID: 8300000, guid: e0f3705706d084a56a77c9e74ffb7d51, type: 3}
+  playClip: {fileID: 8300000, guid: d78eece61aa6e4cc7bdca1900bce69be, type: 3}
+  batheClip: {fileID: 8300000, guid: c080ddac7adb74d598939d984d92a6a1, type: 3}
+  sleepClip: {fileID: 8300000, guid: 00bdc7c80dece45f7a20dc85bfcc0746, type: 3}
+  wakeClip: {fileID: 8300000, guid: 232979f4cec994d77abf79d9829572d7, type: 3}
+  eggSelectedClip: {fileID: 8300000, guid: b8446cb3acb184e0d9582b3e460fa2db, type: 3}
+  hatchClip: {fileID: 8300000, guid: f52a776ec8b3d4a6a998ef94ff4f0665, type: 3}
+  evolutionClip: {fileID: 8300000, guid: de597ce30e39e4b379a6c0809863138d, type: 3}
+  comaClip: {fileID: 8300000, guid: eb17acf63f03f481c994b88b40a4ce55, type: 3}
+  recoveryClip: {fileID: 8300000, guid: ed77a818a9dce46069834a5405ad5d5e, type: 3}
+  gameOverClip: {fileID: 8300000, guid: bc8d113387eec4d06a0ce4defe29b9f5, type: 3}
+  newPetClip: {fileID: 8300000, guid: d12fa411fd55f4d7e9277db18276d133, type: 3}
+  sfxVolume: 0.85
+  minimumPitch: 0.96
+  maximumPitch: 1.04
+  automaticallyWireButtonClicks: 1
 --- !u!1 &2085359009
 GameObject:
   m_ObjectHideFlags: 0
