@@ -12,7 +12,6 @@ neglect from ending the pet's life.
 - Candidate: `Indunil Suresh Rathnasooriya`
 - Unity version: `6000.0.62f1`
 
-Replace every placeholder above before submission.
 
 ## Core player flow
 
